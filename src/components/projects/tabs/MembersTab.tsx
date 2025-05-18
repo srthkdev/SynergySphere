@@ -48,6 +48,8 @@ export function MembersTab({ projectId }: { projectId: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projectMembers', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setInviteEmail("");
       setIsInviteDialogOpen(false);
       toast.success("Member added successfully!");
@@ -79,6 +81,8 @@ export function MembersTab({ projectId }: { projectId: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projectMembers', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success("Member removed successfully!");
     },
     onError: (error: any) => {
