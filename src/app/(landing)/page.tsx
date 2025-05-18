@@ -1,53 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import ThemeToggler from "@/components/theme/toggler";
 import { Button } from "@/components/ui/button";
-import { UserProfile } from "@/components/user-profile";
 import { siteConfig } from "@/config/site.config";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Sparkle, Github, ArrowUpRight, ListChecks, MessageSquare, BarChart3, PackageSearch, AlertTriangle, Users2, Target, Rocket, ClipboardCheck, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
+import Navbar from "./Navbar";
 
 export default function Home() {
   const { data: session, isPending } = useSession();
 
   return (
     <div className="w-full h-auto overflow-y-auto flex flex-col items-center justify-center">
+      <Navbar />
       <div className="w-full max-w-7xl mx-auto border border-dashed flex flex-col my-2">
-        <div className="w-full flex justify-between divide-x sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex-1 flex flex-col">
-            <div id="nav" className="w-full flex items-center justify-end border-b border-dashed divide-x">
-              <div id="brand" className="font-mono text-sm flex-1 flex items-center h-full px-3 border-dashed">
-                <Link href="/" className="hover:underline">{siteConfig.name}</Link>
-              </div>
-              {!isPending && (session ? (
-                <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
-                  <Link href="/dashboard" className="flex items-center gap-2 group/nav">
-                    <span>Dashboard</span>
-                    <div className="relative z-10 size-4 overflow-hidden flex items-center justify-center">
-                      <ArrowUpRight className="-z-10 absolute opacity-100 scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/nav:-translate-y-5 group-hover/nav:translate-x-5 group-hover/nav:opacity-0 group-hover/nav:scale-0 transition-all duration-200" />
-                      <ArrowUpRight className="absolute -z-10 -bottom-4 -left-4 opacity-0 scale-0 group-hover/nav:-translate-y-[15px] group-hover/nav:translate-x-4 group-hover/nav:opacity-100 group-hover/nav:scale-100 transition-all duration-200" />
-                    </div>
-                  </Link>
-                </Button>
-              ) : (
-                <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
-                  <Link href="/sign-in" className="flex items-center gap-2 group/nav">
-                    <span>Sign In</span>
-                    <div className="relative z-10 size-4 overflow-hidden flex items-center justify-center">
-                      <ArrowUpRight className="-z-10 absolute opacity-100 scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/nav:-translate-y-5 group-hover/nav:translate-x-5 group-hover/nav:opacity-0 group-hover/nav:scale-0 transition-all duration-200" />
-                      <ArrowUpRight className="absolute -z-10 -bottom-4 -left-4 opacity-0 scale-0 group-hover/nav:-translate-y-[15px] group-hover/nav:translate-x-4 group-hover/nav:opacity-100 group-hover/nav:scale-100 transition-all duration-200" />
-                    </div>
-                  </Link>
-                </Button>
-              ))}
-              <UserProfile className="border-dashed size-10 md:size-14" />
-              <ThemeToggler className="border-dashed size-10 md:size-14" />
-            </div>
-              </div>
-            </div>
         <div id="hero" className="flex flex-col p-8 md:p-12 items-center text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-heading tracking-tight mb-6">{siteConfig.name}</h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mb-8">{siteConfig.description}</p>
@@ -66,6 +34,27 @@ export default function Home() {
             </Button>
           </div>
         </div>
+        <section id="how" className="py-12 md:py-16 lg:py-20">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Get Going in Minutes</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+              {howItWorksConfig.map((step, index) => (
+                <div
+                  key={index}
+                  className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item flex flex-col items-center text-center"
+                >
+                  <div className="p-3 bg-primary/10 rounded-full mb-4 group-hover/item:scale-110 transition-transform duration-300">
+                    {step.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold font-heading tracking-tight mb-2">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {step.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
         <section id="features" className="py-12 md:py-16 lg:py-20">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Core Pillars of SynergySphere</h2>
@@ -87,13 +76,13 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <section id="challenges" className="py-12 md:py-16 lg:py-20 bg-muted/30">
+        <section id="pricing" className="py-12 md:py-16 lg:py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Stop Headaches, Start Collaborating</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
               {painPointsConfig.map((item, index) => (
                 <div
-              key={index}
+                  key={index}
                   className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item"
                 >
                   <div className="flex items-center gap-3 mb-4">
@@ -106,27 +95,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-        <section id="how-it-works" className="py-12 md:py-16 lg:py-20">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Get Going in Minutes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {howItWorksConfig.map((step, index) => (
-                <div
-                  key={index}
-                  className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item flex flex-col items-center text-center"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full mb-4 group-hover/item:scale-110 transition-transform duration-300">
-                    {step.icon}
-              </div>
-                  <h3 className="text-xl font-semibold font-heading tracking-tight mb-2">{step.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                    {step.description}
-              </p>
-                </div>
-          ))}
-        </div>
           </div>
         </section>
       </div>
