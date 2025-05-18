@@ -6,7 +6,7 @@ SynergySphere is an advanced team collaboration platform.
 
 Check out the demo video below to see SynergySphere in action:
 
-https://github.com/srthkdev/SynergySphere/demo.mov
+https://github.com/user-attachments/assets/eddf39f4-5298-4161-9e4a-f560f90eb25e
 
 <!-- 
 To add your demo video:
