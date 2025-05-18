@@ -1,5 +1,9 @@
 {
+<<<<<<< Updated upstream
   "id": "03ab8f3a-a004-4c08-92c4-21aa173f6269",
+=======
+  "id": "91cf86ec-ea28-4ca0-b160-bda4bcf87e0f",
+>>>>>>> Stashed changes
   "prevId": "f39d40a2-437a-4ae0-b60e-86e038cb6809",
   "version": "7",
   "dialect": "postgresql",
@@ -138,6 +142,15 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< Updated upstream
+=======
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> Stashed changes
         "author_id": {
           "name": "author_id",
           "type": "text",
@@ -187,6 +200,22 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+<<<<<<< Updated upstream
+=======
+        "comment_parent_id_comment_id_fk": {
+          "name": "comment_parent_id_comment_id_fk",
+          "tableFrom": "comment",
+          "tableTo": "comment",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+>>>>>>> Stashed changes
         "comment_author_id_user_id_fk": {
           "name": "comment_author_id_user_id_fk",
           "tableFrom": "comment",
@@ -601,6 +630,7 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+<<<<<<< Updated upstream
         },
         "priority": {
           "name": "priority",
@@ -614,6 +644,8 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+=======
+>>>>>>> Stashed changes
         }
       },
       "indexes": {},

@@ -111,6 +111,7 @@ export const comment = pgTable("comment", {
   // Optional task reference for task-specific comments
   taskId: uuid("task_id")
     .references(() => task.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references(() => (comment as any).id, { onDelete: "cascade" }), // For threaded comments
   authorId: text("author_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

@@ -19,6 +19,7 @@ export async function GET(
 
     const projectId = params.id;
     const taskId = req.nextUrl.searchParams.get("taskId");
+    const parentId = req.nextUrl.searchParams.get("parentId");
 
     // Verify user is a member of the project
     const [member] = await db
@@ -36,6 +37,14 @@ export async function GET(
       // If no taskId is provided, fetch only project-level comments (taskId is null)
       conditions.push(sql`${comment.taskId} IS NULL`);
     }
+    if (parentId !== null && parentId !== undefined) {
+      if (parentId === "") {
+        // Top-level comments (parentId is null)
+        conditions.push(sql`${comment.parentId} IS NULL`);
+      } else {
+        conditions.push(eq(comment.parentId, parentId));
+      }
+    }
 
     const commentsData = await db
       .select({
@@ -43,6 +52,7 @@ export async function GET(
         content: comment.content,
         projectId: comment.projectId,
         taskId: comment.taskId,
+        parentId: comment.parentId,
         authorId: comment.authorId,
         createdAt: comment.createdAt,
         updatedAt: comment.updatedAt,
@@ -67,7 +77,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { content, taskId } = await req.json();
+    const { content, taskId, parentId } = await req.json();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -96,6 +106,7 @@ export async function POST(
       content: content.trim(),
       projectId,
       taskId: taskId || null, // Ensure taskId is null if not provided
+      parentId: parentId ?? null, // For threaded comments
       authorId: currentUser.id,
       createdAt: now,
       updatedAt: now,
@@ -110,6 +121,7 @@ export async function POST(
         content: comment.content,
         projectId: comment.projectId,
         taskId: comment.taskId,
+        parentId: comment.parentId,
         authorId: comment.authorId,
         createdAt: comment.createdAt,
         updatedAt: comment.updatedAt,

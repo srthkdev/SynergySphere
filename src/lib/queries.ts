@@ -131,11 +131,12 @@ export const updateMemberRole = async (
   return response.json();
 };
 
-export const fetchComments = async (projectId: string, taskId?: string): Promise<Comment[]> => {
+export const fetchComments = async (projectId: string, taskId?: string, parentId?: string | null): Promise<Comment[]> => {
   let url = `/api/projects/${projectId}/comments`;
-  if (taskId) {
-    url += `?taskId=${taskId}`;
-  }
+  const params = new URLSearchParams();
+  if (taskId) params.append('taskId', taskId);
+  if (parentId !== undefined) params.append('parentId', parentId ?? '');
+  if ([...params].length > 0) url += `?${params.toString()}`;
   const response = await fetch(url);
   if (!response.ok) {
     const errorData = await response.json();
@@ -146,7 +147,7 @@ export const fetchComments = async (projectId: string, taskId?: string): Promise
 
 export const createComment = async (
   projectId: string, 
-  commentData: { content: string; taskId?: string | null }
+  commentData: { content: string; taskId?: string | null; parentId?: string | null }
 ): Promise<Comment> => {
   const response = await fetch(`/api/projects/${projectId}/comments`, {
     method: 'POST',

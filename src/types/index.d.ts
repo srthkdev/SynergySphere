@@ -64,6 +64,7 @@ export interface Comment {
   content: string;
   projectId: string;
   taskId?: string | null;
+  parentId?: string | null; // For threaded comments
   authorId: string;
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
