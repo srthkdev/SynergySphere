@@ -3,7 +3,7 @@ import { siteConfig } from "@/config/site.config";
 import { LayoutGrid } from "lucide-react"; 
 import Link from "next/link";
 import ThemeToggler from "@/components/theme/toggler";
-
+import { UserProfile } from "@/components/user-profile";
 
 export const AppNavbar = () => {
   return (
@@ -22,7 +22,7 @@ export const AppNavbar = () => {
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggler className="h-8 w-8" />
-        
+        <UserProfile className="h-9 w-9" />
       </div>
     </div>
   )

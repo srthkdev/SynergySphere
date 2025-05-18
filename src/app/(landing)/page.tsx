@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-
-import { Button } from "@/components/ui/button";
 import ThemeToggler from "@/components/theme/toggler";
+import { Button } from "@/components/ui/button";
+import { UserProfile } from "@/components/user-profile";
 import { siteConfig } from "@/config/site.config";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Sparkle, Github, ArrowUpRight, ListChecks, MessageSquare, BarChart3, PackageSearch, AlertTriangle, Users2, Target, Rocket, ClipboardCheck, MessagesSquare } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 
 export default function Home() {
-  
+  const { data: session, isPending } = useSession();
 
   return (
     <div className="w-full h-auto overflow-y-auto flex flex-col items-center justify-center">
@@ -21,7 +22,7 @@ export default function Home() {
               <div id="brand" className="font-mono text-sm flex-1 flex items-center h-full px-3 border-dashed">
                 <Link href="/" className="hover:underline">{siteConfig.name}</Link>
               </div>
-              
+              {!isPending && (session ? (
                 <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
                   <Link href="/dashboard" className="flex items-center gap-2 group/nav">
                     <span>Dashboard</span>
@@ -31,7 +32,7 @@ export default function Home() {
                     </div>
                   </Link>
                 </Button>
-              
+              ) : (
                 <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
                   <Link href="/sign-in" className="flex items-center gap-2 group/nav">
                     <span>Sign In</span>
@@ -41,8 +42,8 @@ export default function Home() {
                     </div>
                   </Link>
                 </Button>
-              
-              
+              ))}
+              <UserProfile className="border-dashed size-10 md:size-14" />
               <ThemeToggler className="border-dashed size-10 md:size-14" />
             </div>
               </div>

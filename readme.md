@@ -26,4 +26,4 @@ The initial focus is on laying the foundation with a Core Collaboration MVP. Thi
 - Component library: Shadcn UI
 - Authentication: better-auth (to be evaluated for suitability)
 - Database: postgres
-- ORM: drizzle-orm
+- ORM: drizzle-orm 

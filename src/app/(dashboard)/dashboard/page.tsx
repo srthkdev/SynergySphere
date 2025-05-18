@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PlusCircle, Folder, User, CalendarClock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CreateProjectDialog } from "@/components/project/create-project-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchProjects } from "@/lib/queries";
 import { Project } from "@/types";
 
 export default function DashboardPage() {
@@ -31,6 +33,13 @@ export default function DashboardPage() {
 				<ProjectsGrid />
 			</div>
 
+			<CreateProjectDialog 
+				open={isCreateProjectOpen} 
+				onOpenChange={setIsCreateProjectOpen} 
+				onProjectCreated={() => {
+					queryClient.invalidateQueries({ queryKey: ['projects'] });
+				}}
+			/>
 		</div>
 	);
 }
@@ -38,6 +47,7 @@ export default function DashboardPage() {
 function ProjectsGrid() {
 	const { data: projects, isLoading, error } = useQuery<Project[], Error>({
 		queryKey: ['projects'], 
+		queryFn: fetchProjects,
 	});
 
 	if (isLoading) {
