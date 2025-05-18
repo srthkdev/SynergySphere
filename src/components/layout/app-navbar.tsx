@@ -64,7 +64,7 @@ export const AppNavbar = () => {
         
         {/* Breadcrumbs */}
         <div className="hidden md:flex items-center text-sm text-muted-foreground">
-          <Link href="/projects" className="hover:text-foreground transition-colors">
+          <Link href="/dashboard" className="hover:text-foreground transition-colors">
             My Projects
           </Link>
           

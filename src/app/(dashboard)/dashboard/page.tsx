@@ -3,22 +3,24 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Folder, User, CalendarClock, Loader2 } from "lucide-react";
+import { PlusCircle, Folder, User, CalendarClock, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreateProjectDialog } from "@/components/project/create-project-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchProjects } from "@/lib/queries";
 import { Project } from "@/types";
+import { Input } from "@/components/ui/input";
 
 export default function DashboardPage() {
 	const router = useRouter();
 	const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
 	const queryClient = useQueryClient();
+	const [searchQuery, setSearchQuery] = useState("");
 
 	return (
 		<div className="container mx-auto py-8 px-4">
-			<div className="flex justify-between items-center mb-8">
+			<div className="flex justify-between items-center mb-6">
 				<h1 className="text-2xl font-bold">My Projects</h1>
 				<Button 
 					onClick={() => setIsCreateProjectOpen(true)}
@@ -28,9 +30,21 @@ export default function DashboardPage() {
 					Create Project
 				</Button>
 			</div>
+			
+			<div className="mb-6 relative">
+				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input
+					placeholder="Search projects..."
+					className="pl-10"
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+				/>
+			</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-				<ProjectsGrid />
+			<div className="h-[calc(100vh-220px)] overflow-y-auto pr-2">
+				<div className="flex flex-col gap-4">
+					<ProjectsGrid searchQuery={searchQuery} />
+				</div>
 			</div>
 
 			<CreateProjectDialog 
@@ -44,7 +58,7 @@ export default function DashboardPage() {
 	);
 }
 
-function ProjectsGrid() {
+function ProjectsGrid({ searchQuery }: { searchQuery: string }) {
 	const { data: projects, isLoading, error } = useQuery<Project[], Error>({
 		queryKey: ['projects'], 
 		queryFn: fetchProjects,
@@ -55,16 +69,29 @@ function ProjectsGrid() {
 	}
 	
 	if (error) {
-		return <div className="col-span-full text-center py-8 text-red-500">Error: {error.message}</div>;
+		return <div className="text-center py-8 text-red-500">Error: {error.message}</div>;
 	}
 	
 	if (!projects || projects.length === 0) {
 		return <EmptyProjectsState />;
 	}
 	
+	const filteredProjects = projects.filter(project => 
+		project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+		(project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()))
+	);
+	
+	if (filteredProjects.length === 0) {
+		return (
+			<div className="text-center py-8 text-muted-foreground">
+				No projects match your search
+			</div>
+		);
+	}
+	
 	return (
 		<>
-			{projects.map((project) => (
+			{filteredProjects.map((project) => (
 				<ProjectCard key={project.id} project={project} />
 			))}
 		</>
@@ -74,7 +101,7 @@ function ProjectsGrid() {
 // Empty state when no projects exist
 function EmptyProjectsState() {
 	return (
-		<div className="col-span-full">
+		<div>
 			<Card className="border-dashed">
 				<CardContent className="flex flex-col items-center justify-center pt-10 pb-10">
 					<Folder className="h-12 w-12 text-muted-foreground mb-4" />
