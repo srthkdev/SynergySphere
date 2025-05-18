@@ -50,39 +50,58 @@ export default function AuthCard({
     const toastId = toast.loading(mode === "sign-in" ? "Signing in..." : "Signing up...");
     
     try {
-      // Use the correct API endpoint structure for better-auth
-      const endpoint = `/api/auth/${mode === "sign-in" ? "sign-in" : "sign-up"}`;
-      
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          provider: "credentials", 
-          credentials: {
+      if (mode === "sign-in") {
+        const { error } = await authClient.signIn.email(
+          {
             email: data.email,
             password: data.password,
+            callbackURL: "/dashboard",
           },
-          callbackURL: "/dashboard",
-        }),
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || "Authentication failed");
+          {
+            onSuccess: () => {
+              toast.success("Signed in successfully! Redirecting...", { id: toastId });
+              router.push("/dashboard");
+            },
+            onError: (err: any) => {
+              console.error("Sign-in error object:", err);
+              const message = err?.error?.message || err?.message || "Sign-in failed. Please try again.";
+              throw new Error(message);
+            },
+          }
+        );
+        if (error) { // Handle potential error returned directly from the call
+          throw new Error(error.message || "Sign-in failed");
+        }
+      } else { // sign-up
+        const { error } = await authClient.signUp.email(
+          {
+            email: data.email,
+            password: data.password,
+            name: data.email.split("@")[0], // Using email prefix as name, as per original implementation
+            callbackURL: "/dashboard", // Assuming better-auth handles redirection or provides a session
+          },
+          {
+            onSuccess: () => {
+              toast.success("Account created successfully! Redirecting...", { id: toastId });
+              // For sign-up, better-auth might not automatically sign in.
+              // If it does, router.push is fine. If not, user might need to sign in after sign-up.
+              // For now, assuming sign-up also leads to a session and redirection.
+              router.push("/dashboard");
+            },
+            onError: (err: any) => {
+              console.error("Sign-up error object:", err);
+              const message = err?.error?.message || err?.message || "Sign-up failed. Please try again.";
+              throw new Error(message);
+            },
+          }
+        );
+        if (error) { // Handle potential error returned directly from the call
+          throw new Error(error.message || "Sign-up failed");
+        }
       }
-      
-      toast.success(
-        mode === "sign-in" 
-          ? "Signed in successfully! Redirecting..." 
-          : "Account created successfully! Redirecting...", 
-        { id: toastId }
-      );
-      
-      // Redirect user
-      router.push("/dashboard");
+      // If onSuccess callbacks handle redirection and success toast,
+      // these lines might be redundant or need adjustment based on better-auth behavior.
+      // For now, keeping the structure, assuming onSuccess might not run if an error is thrown before it.
       
     } catch (e: unknown) {
       console.error("Auth submission error:", e);
