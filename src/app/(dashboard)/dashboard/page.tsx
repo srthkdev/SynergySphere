@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Folder, User, CalendarClock, Loader2, Search } from "lucide-react";
+import { PlusCircle, Folder, User, CalendarClock, Loader2, Search, Image } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreateProjectDialog } from "@/components/project/create-project-dialog";
@@ -155,6 +155,19 @@ function ProjectCard({ project }: { project: Project }) {
 	return (
 		<Link href={`/projects/${project.id}`} className="block">
 			<Card className="hover:border-primary/50 transition-colors">
+				{project.imageUrl && (
+					<div className="w-full h-40 overflow-hidden">
+						<img 
+							src={project.imageUrl.startsWith('http') ? project.imageUrl : `${window.location.origin}${project.imageUrl}`} 
+							alt={`${project.name} cover`}
+							className="w-full h-full object-cover"
+							onError={(e) => {
+								// If image fails to load, add a placeholder or remove the container
+								(e.target as HTMLImageElement).style.display = 'none';
+							}}
+						/>
+					</div>
+				)}
 				<CardHeader>
 					<CardTitle>{project.name}</CardTitle>
 					<CardDescription className="line-clamp-1">

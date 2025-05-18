@@ -12,7 +12,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all tasks assigned to the current user
+    // Check if we should include tasks created by the user
+    const url = new URL(req.url);
+    const includeCreated = url.searchParams.get("includeCreated") === "true";
+
+    // Base query conditions
+    let conditions = [];
+    
+    // Always include tasks assigned to the user
+    conditions.push(eq(task.assigneeId, currentUser.id));
+    
+    // Optionally include tasks created by the user
+    if (includeCreated) {
+      conditions.push(eq(task.createdById, currentUser.id));
+    }
+
+    // Get tasks based on the conditions
     const myTasks = await db
       .select({
         id: task.id,
@@ -32,11 +47,8 @@ export async function GET(req: NextRequest) {
       .from(task)
       .innerJoin(project, eq(task.projectId, project.id))
       .where(
-        // Tasks where the user is explicitly assigned OR created by the user
-        or(
-          eq(task.assigneeId, currentUser.id),
-          eq(task.createdById, currentUser.id)
-        )
+        // Use the conditions array with OR operator
+        or(...conditions)
       )
       .orderBy(desc(task.createdAt));
 
