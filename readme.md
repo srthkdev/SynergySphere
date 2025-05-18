@@ -2,6 +2,20 @@
 
 SynergySphere is an advanced team collaboration platform.
 
+## Demo Video
+
+Check out the demo video below to see SynergySphere in action:
+
+https://github.com/username/SynergySphere/demo.mov
+
+<!-- 
+To add your demo video:
+1. Create an 'assets' folder in your GitHub repository
+2. Upload your demo video to this folder
+3. Replace the placeholder URL above with the actual URL to your video
+4. Alternatively, upload your video to a service like YouTube and embed it here
+-->
+
 ## Project Vision
 
 SynergySphere is built on a simple idea: teams do their best work when their tools truly support how they think, communicate, and move forward together. This platform aims to go beyond traditional project management software by becoming an intelligent backbone for teams — helping them stay organized, communicate better, manage resources more effectively, and make informed decisions without friction.
