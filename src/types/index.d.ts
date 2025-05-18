@@ -22,6 +22,11 @@ export interface Project {
   memberCount: number;
   createdAt: string;
   updatedAt?: string;
+  tags?: string[];
+  projectManager?: string;
+  deadline?: string;
+  priority?: "Low" | "Medium" | "High";
+  imageUrl?: string;
 }
 
 // Define Task status enum type (mirroring db schema)

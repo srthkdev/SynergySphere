@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AttachmentViewer } from "@/components/ui/attachment-viewer";
 
 // Task status options with badge colors
 export const taskStatusOptions: { value: TaskStatus; label: string; color: string }[] = [
@@ -424,21 +425,16 @@ export function TasksTab({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      {/* Separate image preview dialog */}
+      {/* Replace the separate image preview dialog with AttachmentViewer */}
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Image Attachment</DialogTitle>
-          </DialogHeader>
-          <div className="flex justify-center p-2">
-            {currentImageUrl && (
-              <img 
-                src={currentImageUrl} 
-                alt="Task attachment" 
-                className="max-h-[70vh] object-contain rounded-md"
-              />
-            )}
-          </div>
+        <DialogContent className="max-w-3xl p-0 bg-transparent border-none">
+          {currentImageUrl && (
+            <AttachmentViewer 
+              url={currentImageUrl} 
+              alt="Task attachment"
+              className="max-h-[70vh] max-w-full" 
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

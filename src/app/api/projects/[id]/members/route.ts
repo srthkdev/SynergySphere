@@ -4,6 +4,7 @@ import { projectMember, user, project } from "@/lib/db/schema";
 import { and, eq, sql, inArray } from "drizzle-orm";
 import { getUser } from "@/lib/auth-utils";
 import { v4 as uuidv4 } from "uuid";
+import { createNotification } from "@/lib/notifications";
 
 // Helper to check if current user is an admin of the project
 async function isProjectAdmin(projectId: string, userId: string): Promise<boolean> {
@@ -75,6 +76,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Only project admins can add members" }, { status: 403 });
     }
 
+    // Fetch project details for notification
+    const [projectDetails] = await db
+      .select({
+        name: project.name
+      })
+      .from(project)
+      .where(eq(project.id, projectId));
+
+    if (!projectDetails) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
     // Check if user exists
     const [existingUser] = await db
       .select()
@@ -109,6 +122,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         role: role as 'admin' | 'member'
       })
       .returning();
+
+    // Create notification for the added user
+    try {
+      await createNotification({
+        userId: existingUser.id,
+        message: `You have been added to the project: ${projectDetails.name}`,
+        type: "project_invite",
+        projectId
+      });
+    } catch (notificationError) {
+      console.error("Failed to create notification, but member was added:", notificationError);
+      // Don't block the member addition if notification fails
+    }
 
     return NextResponse.json(newMember, { status: 201 });
   } catch (error) {

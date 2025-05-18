@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutGrid } from "lucide-react"; // Assuming other icons like Settings might be used later
+import { LayoutGrid, CheckSquare } from "lucide-react"; // Added CheckSquare icon for Tasks
 
 // Define nav item type directly here or import from a shared types file if it grows
 interface NavItem {
@@ -15,6 +15,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { href: "/my-tasks", label: "My Tasks", icon: CheckSquare },
   // { href: "/settings", label: "Settings", icon: Settings }, 
 ];
 

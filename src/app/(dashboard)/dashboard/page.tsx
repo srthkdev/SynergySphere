@@ -41,10 +41,8 @@ export default function DashboardPage() {
 				/>
 			</div>
 
-			<div className="h-[calc(100vh-220px)] overflow-y-auto pr-2">
-				<div className="flex flex-col gap-4">
-					<ProjectsGrid searchQuery={searchQuery} />
-				</div>
+			<div className="flex flex-col gap-4">
+				<ProjectsGrid searchQuery={searchQuery} />
 			</div>
 
 			<CreateProjectDialog 
