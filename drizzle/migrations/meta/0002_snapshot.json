@@ -1,6 +1,10 @@
 {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   "id": "03ab8f3a-a004-4c08-92c4-21aa173f6269",
+=======
+  "id": "91cf86ec-ea28-4ca0-b160-bda4bcf87e0f",
+>>>>>>> Stashed changes
 =======
   "id": "91cf86ec-ea28-4ca0-b160-bda4bcf87e0f",
 >>>>>>> Stashed changes
@@ -143,13 +147,19 @@
           "notNull": false
         },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
         "parent_id": {
           "name": "parent_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         "author_id": {
           "name": "author_id",
@@ -201,7 +211,10 @@
           "onUpdate": "no action"
         },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
         "comment_parent_id_comment_id_fk": {
           "name": "comment_parent_id_comment_id_fk",
           "tableFrom": "comment",
@@ -215,6 +228,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         "comment_author_id_user_id_fk": {
           "name": "comment_author_id_user_id_fk",
@@ -631,6 +647,7 @@
           "notNull": true,
           "default": "now()"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         },
         "priority": {
           "name": "priority",
@@ -644,6 +661,8 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
         }

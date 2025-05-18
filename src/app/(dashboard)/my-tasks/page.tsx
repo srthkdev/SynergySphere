@@ -6,14 +6,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Clock, User } from "lucide-react";
+import { Loader2, Calendar, Clock, User, Filter } from "lucide-react";
 import Link from "next/link";
 import { TaskStatus, Task } from "@/types";
 import { AttachmentViewer } from "@/components/ui/attachment-viewer";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // Function to fetch user's tasks
-async function fetchMyTasks(): Promise<Task[]> {
-  const response = await fetch("/api/tasks/my-tasks");
+async function fetchMyTasks(includeCreated: boolean = false): Promise<Task[]> {
+  const response = await fetch(`/api/tasks/my-tasks${includeCreated ? '?includeCreated=true' : ''}`);
   if (!response.ok) {
     throw new Error("Failed to fetch tasks");
   }
@@ -22,10 +24,11 @@ async function fetchMyTasks(): Promise<Task[]> {
 
 export default function MyTasksPage() {
   const [activeTab, setActiveTab] = useState<string>("ALL");
+  const [includeCreated, setIncludeCreated] = useState<boolean>(false);
   
-  const { data: tasks, isLoading, error } = useQuery<Task[], Error>({
-    queryKey: ["my-tasks"],
-    queryFn: fetchMyTasks,
+  const { data: tasks, isLoading, error, refetch } = useQuery<Task[], Error>({
+    queryKey: ["my-tasks", includeCreated],
+    queryFn: () => fetchMyTasks(includeCreated),
   });
 
   const filteredTasks = tasks ? 
@@ -42,9 +45,25 @@ export default function MyTasksPage() {
       : tasks.filter(task => task.status === status).length;
   };
 
+  const handleIncludeCreatedToggle = (checked: boolean) => {
+    setIncludeCreated(checked);
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">My Tasks</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">My Tasks</h1>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="include-created" 
+              checked={includeCreated}
+              onCheckedChange={handleIncludeCreatedToggle}
+            />
+            <Label htmlFor="include-created" className="text-sm">Include tasks I created</Label>
+          </div>
+        </div>
+      </div>
       
       <Tabs defaultValue="ALL" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-4 mb-8">
@@ -73,7 +92,9 @@ export default function MyTasksPage() {
             </div>
           ) : filteredTasks.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              No tasks found in this category
+              {includeCreated 
+                ? "No tasks found in this category" 
+                : "No tasks assigned to you in this category"}
             </div>
           ) : (
             <div className="grid gap-4">
