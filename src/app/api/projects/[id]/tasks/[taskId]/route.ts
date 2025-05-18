@@ -50,7 +50,7 @@ export async function PATCH(
   { params }: { params: { id: string; taskId: string } }
 ) {
   try {
-    const { title, description, status, dueDate, assigneeId } = await req.json();
+    const { title, description, status, dueDate, assigneeId, priority, attachmentUrl } = await req.json();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,6 +71,8 @@ export async function PATCH(
     if (status !== undefined) updateValues.status = status;
     if (dueDate !== undefined) updateValues.dueDate = dueDate ? new Date(dueDate) : null;
     if (assigneeId !== undefined) updateValues.assigneeId = assigneeId;
+    if (priority !== undefined) updateValues.priority = priority;
+    if (attachmentUrl !== undefined) updateValues.attachmentUrl = attachmentUrl;
     updateValues.updatedAt = new Date();
 
     if (Object.keys(updateValues).length === 1 && updateValues.updatedAt) { // Only updatedAt means no actual changes

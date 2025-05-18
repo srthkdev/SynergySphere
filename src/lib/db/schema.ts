@@ -97,6 +97,8 @@ export const task = pgTable("task", {
     .references(() => user.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  priority: text("priority").default("MEDIUM"), // LOW, MEDIUM, HIGH
+  attachmentUrl: text("attachment_url"), // URL to attached image
 });
 
 // Comments for project discussions

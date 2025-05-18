@@ -48,7 +48,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { title, description, status, dueDate, assigneeId } = await req.json();
+    const { title, description, status, dueDate, assigneeId, priority, attachmentUrl } = await req.json();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,6 +84,8 @@ export async function POST(
       createdById: currentUser.id,
       createdAt: now,
       updatedAt: now,
+      priority: priority || 'MEDIUM',
+      attachmentUrl,
     };
 
     await db.insert(task).values(newTask);

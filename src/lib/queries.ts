@@ -25,7 +25,8 @@ export const fetchTasksByProjectId = async (projectId: string): Promise<Task[]> 
   const response = await fetch(`/api/projects/${projectId}/tasks`);
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch tasks for project');
+    console.error(`Error fetching tasks (status ${response.status}):`, errorData);
+    throw new Error(errorData.error || `Failed to fetch tasks for project (status: ${response.status})`);
   }
   return response.json();
 };

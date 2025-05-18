@@ -27,6 +27,9 @@ export interface Project {
 // Define Task status enum type (mirroring db schema)
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
+// Define Task priority type
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
 // Add Task type
 export interface Task {
   id: string;
@@ -39,6 +42,8 @@ export interface Task {
   createdById: string;
   createdAt: string;
   updatedAt: string;
+  priority?: TaskPriority | null; // Task priority
+  attachmentUrl?: string | null; // URL to attached image
   // Optionally, include assignee details if fetched/joined
   // assignee?: { id: string; name: string; image?: string | null };
 }
