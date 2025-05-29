@@ -41,3 +41,6 @@ The initial focus is on laying the foundation with a Core Collaboration MVP. Thi
 - Authentication: better-auth (to be evaluated for suitability)
 - Database: postgres
 - ORM: drizzle-orm 
+
+
+made with ✨ by Exelciors team
