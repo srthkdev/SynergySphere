@@ -1,0 +1,235 @@
+"use client"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Icons } from "@/components/icons"
+import Link from "next/link"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { authClient } from "@/lib/auth-client"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+})
+
+type SignupFormData = z.infer<typeof signupSchema>
+
+export default function SignupForm() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const router = useRouter()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+  })
+
+  const onSubmit = async (data: SignupFormData) => {
+    setIsLoading(true)
+    const toastId = toast.loading("Creating your account...")
+
+    try {
+      const { error } = await authClient.signUp.email(
+        {
+          email: data.email,
+          password: data.password,
+          name: data.name,
+          callbackURL: "/dashboard",
+        },
+        {
+          onSuccess: () => {
+            toast.success("Account created successfully!", { id: toastId })
+            router.push("/dashboard")
+          },
+          onError: (err: any) => {
+            console.error("Sign-up error:", err)
+            const message = err?.error?.message || err?.message || "Failed to create account"
+            toast.error(message, { id: toastId })
+          },
+        }
+      )
+
+      if (error) {
+        toast.error(error.message || "Sign-up failed", { id: toastId })
+      }
+    } catch (error: any) {
+      console.error("Auth error:", error)
+      toast.error("An unexpected error occurred", { id: toastId })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    const toastId = toast.loading("Redirecting to Google...")
+
+    try {
+      await authClient.signIn.social(
+        {
+          provider: "google",
+          callbackURL: "/dashboard",
+        },
+        {
+          onSuccess: () => {
+            toast.success("Signed in with Google!", { id: toastId })
+          },
+          onError: (error: any) => {
+            console.error("Google Sign-In error:", error)
+            toast.error("Google Sign-In failed", { id: toastId })
+          },
+        }
+      )
+    } catch (error) {
+      console.error("Google Sign-In error:", error)
+      toast.error("An unexpected error occurred", { id: toastId })
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  return (
+    <section className="flex min-h-screen bg-zinc-50 px-4 py-16 md:py-32 dark:bg-transparent">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="bg-muted m-auto h-fit w-full max-w-sm overflow-hidden rounded-[calc(var(--radius)+.125rem)] border shadow-md shadow-zinc-950/5 dark:[--color-muted:var(--color-zinc-900)]"
+      >
+        <div className="bg-card -m-px rounded-[calc(var(--radius)+.125rem)] border p-8 pb-6">
+          <div className="text-center">
+            <Link href="/" aria-label="go home" className="mx-auto block w-fit">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Icons.Logo className="h-6 w-6" />
+              </div>
+            </Link>
+            <h1 className="mb-1 mt-4 text-xl font-semibold">Create your account</h1>
+            <p className="text-sm text-muted-foreground">Get started with SynergySphere</p>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="block text-sm">
+                Name
+              </Label>
+              <Input
+                type="text"
+                id="name"
+                placeholder="John Doe"
+                {...register("name")}
+                disabled={isLoading || googleLoading}
+                className={errors.name ? "border-red-500" : ""}
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="block text-sm">
+                Email
+              </Label>
+              <Input
+                type="email"
+                id="email"
+                placeholder="name@example.com"
+                {...register("email")}
+                disabled={isLoading || googleLoading}
+                className={errors.email ? "border-red-500" : ""}
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm">
+                Password
+              </Label>
+              <Input
+                type="password"
+                id="password"
+                placeholder="••••••••"
+                {...register("password")}
+                disabled={isLoading || googleLoading}
+                className={errors.password ? "border-red-500" : ""}
+              />
+              {errors.password && (
+                <p className="text-xs text-red-500">{errors.password.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm">
+                Confirm Password
+              </Label>
+              <Input
+                type="password"
+                id="confirmPassword"
+                placeholder="••••••••"
+                {...register("confirmPassword")}
+                disabled={isLoading || googleLoading}
+                className={errors.confirmPassword ? "border-red-500" : ""}
+              />
+              {errors.confirmPassword && (
+                <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || googleLoading}
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Account
+            </Button>
+          </div>
+
+          <div className="my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <hr className="border-dashed" />
+            <span className="text-muted-foreground text-xs">Or continue with</span>
+            <hr className="border-dashed" />
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading || googleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Icons.Google className="h-4 w-4" />
+            )}
+            Google
+          </Button>
+        </div>
+
+        <div className="p-3">
+          <p className="text-accent-foreground text-center text-sm">
+            Already have an account?{" "}
+            <Button asChild variant="link" className="px-2">
+              <Link href="/sign-in">Sign in</Link>
+            </Button>
+          </p>
+        </div>
+      </form>
+    </section>
+  )
+} 

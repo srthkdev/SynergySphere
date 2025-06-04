@@ -1,5 +1,9 @@
 import { pgTable, text, timestamp, boolean, integer, pgEnum, uuid } from "drizzle-orm/pg-core";
 
+// Enums - defined first to be used in table definitions
+export const taskStatusEnum = pgEnum('task_status', ['TODO', 'IN_PROGRESS', 'DONE']);
+export const projectRoleEnum = pgEnum('project_role', ['owner', 'admin', 'member', 'viewer']);
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -50,11 +54,6 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at"),
 });
 
-// Define new schemas for SynergySphere
-
-// Task status enum
-export const taskStatusEnum = pgEnum('task_status', ['TODO', 'IN_PROGRESS', 'DONE']);
-
 // Projects table
 export const project = pgTable("project", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -76,7 +75,7 @@ export const projectMember = pgTable("project_member", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("member"), // e.g., "admin", "member"
+  role: projectRoleEnum("role").notNull().default("member"),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 });
 
@@ -111,7 +110,7 @@ export const comment = pgTable("comment", {
   // Optional task reference for task-specific comments
   taskId: uuid("task_id")
     .references(() => task.id, { onDelete: "cascade" }),
-  parentId: uuid("parent_id").references(() => (comment as any).id, { onDelete: "cascade" }), // For threaded comments
+  parentId: uuid("parent_id"), // For threaded comments - will be self-referenced
   authorId: text("author_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -132,5 +131,39 @@ export const notification = pgTable("notification", {
   taskId: uuid("task_id")
     .references(() => task.id, { onDelete: "cascade" }),
   isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Budget table for project financial management
+export const budget = pgTable("budget", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" })
+    .unique(), // One budget per project
+  totalBudget: integer("total_budget").notNull().default(0), // in cents to avoid floating point issues
+  spentAmount: integer("spent_amount").notNull().default(0), // in cents
+  currency: text("currency").notNull().default("USD"),
+  createdById: text("created_by_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Budget entries for tracking expenses
+export const budgetEntry = pgTable("budget_entry", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  budgetId: uuid("budget_id")
+    .notNull()
+    .references(() => budget.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(), // in cents, can be negative for refunds
+  description: text("description").notNull(),
+  category: text("category").notNull().default("general"), // labor, materials, tools, etc.
+  taskId: uuid("task_id")
+    .references(() => task.id, { onDelete: "set null" }), // optional link to specific task
+  createdById: text("created_by_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

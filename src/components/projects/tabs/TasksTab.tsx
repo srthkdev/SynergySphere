@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { fetchTasksByProjectId, updateTask, deleteTask, fetchProjectMembers } from "@/lib/queries";
-import { Task, TaskStatus, ProjectMember, TaskPriority } from "@/types";
+import { Task as BackendTask, TaskStatus, ProjectMember, TaskPriority } from "@/types";
 import { CreateEditTaskDialog } from "../task/CreateEditTaskDialog";
 import { useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 import { 
   Select, 
   SelectContent, 
@@ -23,14 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +31,32 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AttachmentViewer } from "@/components/ui/attachment-viewer";
+
+// Import the new view components
+import { ViewSwitcher, ViewMode } from "@/components/ui/view-switcher";
+import { KanbanView } from "@/components/views/kanban-view";
+import { GalleryView } from "@/components/views/gallery-view";
+import { ListView } from "@/components/views/list-view";
+
+// Frontend Task interface for views
+interface FrontendTask {
+  id: string;
+  title: string;
+  description: string;
+  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: string;
+  assignedBy: string;
+  assignedByAvatar: string;
+  tags: string[];
+  progress: number;
+  estimatedHours: number;
+  loggedHours: number;
+  project: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Task status options with badge colors
 export const taskStatusOptions: { value: TaskStatus; label: string; color: string }[] = [
@@ -54,25 +73,56 @@ export const priorityOptions: { value: TaskPriority; label: string; color: strin
 ];
 
 interface OptimisticTaskContext {
-  previousTasks?: Task[];
+  previousTasks?: BackendTask[];
 }
+
+// Convert backend task format to frontend format
+const convertTaskFormat = (backendTask: BackendTask): FrontendTask => {
+  return {
+    id: backendTask.id,
+    title: backendTask.title,
+    description: backendTask.description || '',
+    status: backendTask.status === 'TODO' ? 'todo' : 
+            backendTask.status === 'IN_PROGRESS' ? 'in-progress' : 
+            backendTask.status === 'DONE' ? 'completed' : 'todo',
+    priority: backendTask.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
+    dueDate: backendTask.dueDate || undefined,
+    assignedBy: backendTask.assigneeId ? 'Project Manager' : 'Unassigned',
+    assignedByAvatar: 'https://ui-avatars.com/api/?name=Project+Manager&background=3b82f6',
+    tags: [],
+    progress: backendTask.status === 'DONE' ? 100 : 
+              backendTask.status === 'IN_PROGRESS' ? 50 : 0,
+    estimatedHours: 8,
+    loggedHours: backendTask.status === 'DONE' ? 8 : 
+                 backendTask.status === 'IN_PROGRESS' ? 4 : 0,
+    project: 'Current Project',
+    projectId: backendTask.projectId,
+    createdAt: backendTask.createdAt,
+    updatedAt: backendTask.updatedAt
+  };
+};
 
 export function TasksTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
-  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+  const [taskToEdit, setTaskToEdit] = useState<BackendTask | null>(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | 'ALL'>('ALL');
   const [selectedPriority, setSelectedPriority] = useState<TaskPriority | 'ALL'>('ALL');
+  const [currentView, setCurrentView] = useState<ViewMode>('kanban');
+  const router = useRouter();
 
-  const { data: tasks = [], isLoading, error: tasksError } = useQuery<Task[], Error>({
+  const { data: backendTasks = [], isLoading, error: tasksError } = useQuery<BackendTask[], Error>({
     queryKey: ['tasks', projectId],
     queryFn: () => fetchTasksByProjectId(projectId),
     enabled: !!projectId,
   });
+
+  // Convert backend tasks to frontend format
+  const tasks = backendTasks.map(convertTaskFormat);
 
   // Fetch project members to display assignee info and get current user's role
   const { data: members = [] } = useQuery<ProjectMember[], Error>({
@@ -91,14 +141,16 @@ export function TasksTab({ projectId }: { projectId: string }) {
   const isAdmin = currentUserId ? memberMap[currentUserId]?.role === 'admin' : false;
 
   // Check if task is assigned to current user
-  const isTaskAssignee = (task: Task) => {
-    return task.assigneeId === currentUserId;
+  const isTaskAssignee = (task: FrontendTask) => {
+    const backendTask = backendTasks.find(bt => bt.id === task.id);
+    return backendTask?.assigneeId === currentUserId;
   };
 
   // Filter tasks by selected status and priority
   const filteredTasks = tasks.filter(task => {
-    const statusMatch = selectedStatus === 'ALL' || task.status === selectedStatus;
-    const priorityMatch = selectedPriority === 'ALL' || task.priority === selectedPriority;
+    const backendTask = backendTasks.find(bt => bt.id === task.id);
+    const statusMatch = selectedStatus === 'ALL' || backendTask?.status === selectedStatus;
+    const priorityMatch = selectedPriority === 'ALL' || backendTask?.priority === selectedPriority;
     return statusMatch && priorityMatch;
   });
 
@@ -111,8 +163,8 @@ export function TasksTab({ projectId }: { projectId: string }) {
     mutationFn: (taskId) => deleteTask(projectId, taskId),
     onMutate: async (deletedTaskId) => {
       await queryClient.cancelQueries({ queryKey: ['tasks', projectId] });
-      const previousTasks = queryClient.getQueryData<Task[]>(['tasks', projectId]);
-      queryClient.setQueryData<Task[]>(['tasks', projectId], (old = []) => 
+      const previousTasks = queryClient.getQueryData<BackendTask[]>(['tasks', projectId]);
+      queryClient.setQueryData<BackendTask[]>(['tasks', projectId], (old = []) => 
         old.filter(task => task.id !== deletedTaskId)
       );
       return { previousTasks };
@@ -120,7 +172,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
     onError: (err, deletedTaskId, context) => {
       toast.error(err.message || "Failed to delete task");
       if (context?.previousTasks) {
-        queryClient.setQueryData<Task[]>(['tasks', projectId], context.previousTasks);
+        queryClient.setQueryData<BackendTask[]>(['tasks', projectId], context.previousTasks);
       }
     },
     onSettled: () => {
@@ -129,7 +181,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
   });
 
   const updateTaskStatusMutation = useMutation<
-    Task, 
+    BackendTask, 
     Error, 
     { taskId: string; status: TaskStatus },
     OptimisticTaskContext
@@ -137,8 +189,8 @@ export function TasksTab({ projectId }: { projectId: string }) {
     mutationFn: ({ taskId, status }) => updateTask(projectId, taskId, { status }),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['tasks', projectId] });
-      const previousTasks = queryClient.getQueryData<Task[]>(['tasks', projectId]);
-      queryClient.setQueryData<Task[]>(['tasks', projectId], (oldTasks = []) => 
+      const previousTasks = queryClient.getQueryData<BackendTask[]>(['tasks', projectId]);
+      queryClient.setQueryData<BackendTask[]>(['tasks', projectId], (oldTasks = []) => 
         oldTasks.map(task => 
           task.id === variables.taskId ? { ...task, status: variables.status, updatedAt: new Date().toISOString() } : task
         )
@@ -148,7 +200,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
     onError: (err, variables, context) => {
       toast.error(err.message || "Failed to update task status");
       if (context?.previousTasks) {
-        queryClient.setQueryData<Task[]>(['tasks', projectId], context.previousTasks);
+        queryClient.setQueryData<BackendTask[]>(['tasks', projectId], context.previousTasks);
       }
     },
     onSuccess: (updatedTask) => {
@@ -159,13 +211,15 @@ export function TasksTab({ projectId }: { projectId: string }) {
     }
   });
 
-  const handleEditTask = (task: Task) => {
-    // Make a clean copy of the task to prevent reference issues
-    setTaskToEdit({...task});
-    // Open the dialog after setting the task
-    setTimeout(() => {
-      setIsCreateTaskDialogOpen(true);
-    }, 0);
+  const handleEditTask = (task: FrontendTask) => {
+    // Find the corresponding backend task
+    const backendTask = backendTasks.find(bt => bt.id === task.id);
+    if (backendTask) {
+      setTaskToEdit({...backendTask});
+      setTimeout(() => {
+        setIsCreateTaskDialogOpen(true);
+      }, 0);
+    }
   }
 
   const handleAddNewTask = () => {
@@ -175,7 +229,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
     setIsCreateTaskDialogOpen(true);
   }
   
-  const handleUpdateTaskStatus = (task: Task, newStatus: TaskStatus) => {
+  const handleUpdateTaskStatus = (task: FrontendTask, newStatus: TaskStatus) => {
     updateTaskStatusMutation.mutate({
       taskId: task.id,
       status: newStatus
@@ -187,26 +241,29 @@ export function TasksTab({ projectId }: { projectId: string }) {
     setImageDialogOpen(true);
   };
 
-  const getStatusBadge = (status: TaskStatus) => {
-    const option = taskStatusOptions.find(opt => opt.value === status);
-    
-    return (
-      <Badge className={cn("rounded-full px-2.5 py-0.5", option?.color)}>
-        {option?.label}
-      </Badge>
-    );
+  // Handle task updates from views
+  const handleTaskUpdate = async (taskId: string, updates: Partial<FrontendTask>) => {
+    try {
+      // Convert frontend status back to backend format
+      let backendUpdates: any = { ...updates };
+      if (updates.status) {
+        backendUpdates.status = updates.status === 'todo' ? 'TODO' : 
+                               updates.status === 'in-progress' ? 'IN_PROGRESS' : 
+                               updates.status === 'completed' ? 'DONE' : 'TODO';
+      }
+      
+      const response = await updateTask(projectId, taskId, backendUpdates);
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      toast.success('Task updated successfully');
+    } catch (err) {
+      console.error('Error updating task:', err);
+      toast.error('Failed to update task');
+    }
   };
-  
-  const getPriorityBadge = (priority?: TaskPriority | null) => {
-    // Default to MEDIUM if priority is not set
-    const priorityValue = priority || 'MEDIUM';
-    const option = priorityOptions.find(opt => opt.value === priorityValue);
-    
-    return (
-      <Badge className={cn("rounded-full px-2.5 py-0.5", option?.color)}>
-        {option?.label}
-      </Badge>
-    );
+
+  // Handle task click
+  const handleTaskClick = (item: FrontendTask) => {
+    router.push(`/task/${item.id}`);
   };
 
   if (isLoading) return <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -258,6 +315,12 @@ export function TasksTab({ projectId }: { projectId: string }) {
               </Select>
             </div>
             
+            <ViewSwitcher 
+              currentView={currentView} 
+              onViewChange={setCurrentView}
+              availableViews={['kanban', 'gallery', 'list']}
+            />
+            
             {isAdmin && (
               <Button onClick={handleAddNewTask} className="flex items-center gap-2">
                 <PlusCircle className="h-4 w-4" /> Add Task
@@ -266,147 +329,43 @@ export function TasksTab({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        <div className="border rounded-md">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[280px]">Task name</TableHead>
-                <TableHead className="w-[110px]">Status</TableHead>
-                <TableHead className="w-[250px]">Description</TableHead>
-                <TableHead className="w-[130px]">Assignee</TableHead>
-                <TableHead className="w-[100px]">Due date</TableHead>
-                <TableHead className="w-[80px]">Priority</TableHead>
-                <TableHead className="w-[60px]">Attachment</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTasks.length > 0 ? (
-                filteredTasks.map((task) => (
-                  <TableRow key={task.id}>
-                    <TableCell 
-                      className={cn(
-                        "font-medium",
-                        (isAdmin || isTaskAssignee(task)) && "cursor-pointer hover:text-primary"
-                      )}
-                      onClick={() => {
-                        if (isAdmin) {
-                          handleEditTask(task);
-                        }
-                      }}
-                    >
-                      {task.title}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(task.status)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground line-clamp-1">
-                      {task.description || "-"}
-                    </TableCell>
-                    <TableCell>
-                      {task.assigneeId && memberMap[task.assigneeId] ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={memberMap[task.assigneeId].image || undefined} />
-                            <AvatarFallback className="text-[10px]">
-                              {memberMap[task.assigneeId].name?.charAt(0).toUpperCase() || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm truncate max-w-[80px]">
-                            {memberMap[task.assigneeId].name || memberMap[task.assigneeId].email}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "-"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {getPriorityBadge(task.priority)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {task.attachmentUrl ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 px-2 flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
-                          onClick={() => openImagePreview(task.attachmentUrl as string)}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          <span>View</span>
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground">None</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end">
-                        {isAdmin && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                <Edit3 className="h-4 w-4 mr-2" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => deleteTaskMutation.mutate(task.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                        
-                        {/* Status update buttons for assignees */}
-                        {isTaskAssignee(task) && !isAdmin && (
-                          <>
-                            {task.status === 'TODO' && (
-                              <Button
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleUpdateTaskStatus(task, 'IN_PROGRESS')}
-                                className="h-7 text-xs text-blue-500 hover:bg-blue-50"
-                              >
-                                Start
-                              </Button>
-                            )}
-                            {task.status === 'IN_PROGRESS' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleUpdateTaskStatus(task, 'DONE')}
-                                className="h-7 text-xs text-green-500 hover:bg-green-50"
-                              >
-                                Complete
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    <p className="text-muted-foreground">
-                      {selectedStatus === 'ALL' && selectedPriority === 'ALL'
-                        ? 'No tasks found' 
-                        : `No tasks found for the selected filters`}
-                    </p>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              {selectedStatus === 'ALL' && selectedPriority === 'ALL'
+                ? 'No tasks found' 
+                : `No tasks found for the selected filters`}
+            </p>
+          </div>
+        ) : (
+          <div>
+            {currentView === 'kanban' && (
+              <KanbanView 
+                tasks={filteredTasks}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskClick={handleTaskClick}
+              />
+            )}
+            
+            {currentView === 'gallery' && (
+              <GalleryView 
+                items={filteredTasks}
+                type="tasks"
+                onItemUpdate={(itemId: string, updates: any) => handleTaskUpdate(itemId, updates)}
+                onItemClick={(item: any) => handleTaskClick(item as FrontendTask)}
+              />
+            )}
+            
+            {currentView === 'list' && (
+              <ListView 
+                items={filteredTasks}
+                type="tasks"
+                onItemUpdate={(itemId: string, updates: any) => handleTaskUpdate(itemId, updates)}
+                onItemClick={(item: any) => handleTaskClick(item as FrontendTask)}
+              />
+            )}
+          </div>
+        )}
 
         {isAdmin && (
           <CreateEditTaskDialog 

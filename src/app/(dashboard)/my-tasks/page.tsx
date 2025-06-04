@@ -1,194 +1,627 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Clock, User, Filter } from "lucide-react";
-import Link from "next/link";
-import { TaskStatus, Task } from "@/types";
-import { AttachmentViewer } from "@/components/ui/attachment-viewer";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { 
+  CheckSquare,
+  Square,
+  Calendar,
+  Clock,
+  User,
+  Flag,
+  Plus,
+  Filter,
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  AlertCircle,
+  CheckCircle,
+  Timer,
+  FolderOpen,
+  AlertTriangle,
+  Target,
+  Tag,
+  BarChart3
+} from "lucide-react"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useRouter } from 'next/navigation';
 
-// Function to fetch user's tasks
-async function fetchMyTasks(includeCreated: boolean = false): Promise<Task[]> {
-  const response = await fetch(`/api/tasks/my-tasks${includeCreated ? '?includeCreated=true' : ''}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch tasks");
+// Import the new view components
+import { ViewSwitcher, ViewMode } from '@/components/ui/view-switcher';
+import { KanbanView } from '@/components/views/kanban-view';
+import { GalleryView } from '@/components/views/gallery-view';
+import { ListView } from '@/components/views/list-view';
+import { TaskDetailModal } from "@/components/modals/task-detail-modal"
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: string;
+  assignedBy: string;
+  assignedByAvatar: string;
+  tags: string[];
+  progress: number;
+  estimatedHours: number;
+  loggedHours: number;
+  project: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  status: 'planning' | 'active' | 'on-hold' | 'completed';
+  priority: 'low' | 'medium' | 'high';
+  progress: number;
+  startDate: string;
+  endDate?: string;
+  budget: number;
+  spent: number;
+  teamSize: number;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+const taskStats = [
+  {
+    title: "Total Tasks",
+    value: "0",
+    icon: CheckSquare,
+    description: "All assigned tasks"
+  },
+  {
+    title: "In Progress", 
+    value: "0",
+    icon: Clock,
+    description: "Currently working on"
+  },
+  {
+    title: "Completed",
+    value: "0", 
+    icon: Target,
+    description: "Successfully finished"
+  },
+  {
+    title: "Overdue",
+    value: "0",
+    icon: AlertTriangle,
+    description: "Past due date"
   }
-  return response.json();
+];
+
+function getPriorityColor(priority: string) {
+  switch (priority) {
+    case 'urgent': return 'bg-red-500';
+    case 'high': return 'bg-orange-500';
+    case 'medium': return 'bg-yellow-500';
+    case 'low': return 'bg-green-500';
+    default: return 'bg-gray-500';
+  }
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'completed': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300';
+    case 'in-progress': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300';
+    case 'in-review': return 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300';
+    case 'todo': return 'bg-gray-100 dark:bg-gray-800/20 text-gray-800 dark:text-gray-300';
+    default: return 'bg-gray-100 dark:bg-gray-800/20 text-gray-800 dark:text-gray-300';
+  }
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'completed':
+      return <CheckSquare className="h-4 w-4 text-green-600" />
+    case 'in-progress':
+      return <Timer className="h-4 w-4 text-blue-600" />
+    case 'todo':
+      return <Square className="h-4 w-4 text-gray-600" />
+    default:
+      return <Square className="h-4 w-4 text-gray-600" />
+  }
+}
+
+const isOverdue = (dueDate: string, status: string) => {
+  return new Date(dueDate) < new Date() && status !== "completed"
 }
 
 export default function MyTasksPage() {
-  const [activeTab, setActiveTab] = useState<string>("ALL");
-  const [includeCreated, setIncludeCreated] = useState<boolean>(false);
-  
-  const { data: tasks, isLoading, error, refetch } = useQuery<Task[], Error>({
-    queryKey: ["my-tasks", includeCreated],
-    queryFn: () => fetchMyTasks(includeCreated),
+  const router = useRouter();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTab, setSelectedTab] = useState('all');
+  const [currentView, setCurrentView] = useState<ViewMode>('list');
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('all'); // For priority filter dropdown
+  const [showFilters, setShowFilters] = useState(false); // To toggle filter panel
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
+
+  // Fetch tasks from API
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const response = await fetch('/api/tasks');
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+        const data = await response.json();
+        setTasks(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTasks();
+  }, []);
+
+  // Calculate task statistics
+  const totalTasks = tasks.length;
+  const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
+  const completedTasks = tasks.filter(task => task.status === 'completed').length;
+  const overdueTasks = tasks.filter(task => {
+    if (!task.dueDate) return false;
+    return new Date(task.dueDate) < new Date() && task.status !== 'completed';
+  }).length;
+
+  // Update task stats
+  taskStats[0].value = totalTasks.toString();
+  taskStats[1].value = inProgressTasks.toString();
+  taskStats[2].value = completedTasks.toString();
+  taskStats[3].value = overdueTasks.toString();
+
+  // Filter tasks based on search, tab, and priority filter
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.project.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const priorityFilter = selectedPriorityFilter as Task['priority'] | 'all';
+    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+
+    let matchesTab = false;
+    switch (selectedTab) {
+      case 'active':
+        matchesTab = ['todo', 'in-progress', 'in-review'].includes(task.status);
+        break;
+      case 'completed':
+        matchesTab = task.status === 'completed';
+        break;
+      case 'overdue':
+        matchesTab = !!(task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed');
+        break;
+      default: // 'all' tab
+        matchesTab = true;
+        break;
+    }
+    return matchesSearch && matchesPriority && matchesTab;
   });
 
-  const filteredTasks = tasks ? 
-    activeTab === "ALL" 
-      ? tasks 
-      : tasks.filter(task => task.status === activeTab) 
-    : [];
+  // Update task status
+  const updateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: taskId,
+          status: newStatus,
+        }),
+      });
 
-  // Function to get count of tasks by status
-  const getTaskCountByStatus = (status: string | "ALL") => {
-    if (!tasks) return 0;
-    return status === "ALL" 
-      ? tasks.length 
-      : tasks.filter(task => task.status === status).length;
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+
+      const updatedTask = await response.json();
+      setTasks(tasks.map(task => task.id === taskId ? updatedTask : task));
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
   };
 
-  const handleIncludeCreatedToggle = (checked: boolean) => {
-    setIncludeCreated(checked);
+  // Handle task updates from views
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: taskId,
+          ...updates,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+
+      const updatedTask = await response.json();
+      setTasks(tasks.map(task => task.id === taskId ? updatedTask : task));
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
   };
+
+  // Handle task creation
+  const handleTaskCreate = async (status?: Task['status']) => {
+    try {
+      const newTask = {
+        title: 'New Task',
+        description: 'Task description',
+        status: status || 'todo',
+        priority: 'medium' as const,
+        assignedBy: 'Current User',
+        assignedByAvatar: '',
+        tags: [],
+        progress: 0,
+        estimatedHours: 0,
+        loggedHours: 0,
+        project: 'Default Project',
+        projectId: '1',
+      };
+
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTask),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create task');
+      }
+
+      const createdTask = await response.json();
+      setTasks([...tasks, createdTask]);
+    } catch (err) {
+      console.error('Error creating task:', err);
+    }
+  };
+
+  // Handle task click
+  const handleTaskClick = (item: Task | Project) => {
+    const task = item as Task;
+    router.push(`/task/${task.id}`);
+  };
+
+  // Handle item update (for compatibility with views)
+  const handleItemUpdate = (itemId: string, updates: any) => {
+    // Since we're only dealing with tasks, delegate to task update
+    return handleTaskUpdate(itemId, updates);
+  };
+
+  // Handle detailed task creation from modal
+  const handleDetailedTaskCreate = async (newTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'assignedByAvatar'>) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTaskData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create task');
+      }
+
+      const createdTask = await response.json();
+      setTasks([...tasks, createdTask]);
+      setIsCreateTaskModalOpen(false); // Close modal on success
+    } catch (err) {
+      console.error('Error creating detailed task:', err);
+      // TODO: Show error to user in the modal
+      alert(`Error creating task: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading tasks...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">My Tasks</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="include-created" 
-              checked={includeCreated}
-              onCheckedChange={handleIncludeCreatedToggle}
-            />
-            <Label htmlFor="include-created" className="text-sm">Include tasks I created</Label>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
+          <p className="text-muted-foreground">
+            Manage your assigned tasks and track your progress
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="mr-2 h-4 w-4" />
+            Filter
+          </Button>
+          <Button onClick={() => setIsCreateTaskModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Task
+          </Button>
         </div>
       </div>
-      
-      <Tabs defaultValue="ALL" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-4 mb-8">
-          <TabsTrigger value="ALL">
-            All ({getTaskCountByStatus("ALL")})
-          </TabsTrigger>
-          <TabsTrigger value="TODO">
-            To Do ({getTaskCountByStatus("TODO")})
-          </TabsTrigger>
-          <TabsTrigger value="IN_PROGRESS">
-            In Progress ({getTaskCountByStatus("IN_PROGRESS")})
-          </TabsTrigger>
-          <TabsTrigger value="DONE">
-            Done ({getTaskCountByStatus("DONE")})
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value={activeTab}>
-          {isLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <Card className="p-4 mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium">Priority:</label>
+              <Select value={selectedPriorityFilter} onValueChange={setSelectedPriorityFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ) : error ? (
-            <div className="text-center py-10 text-red-500">
-              {error.message || "Failed to load tasks"}
+            <Button variant="outline" size="sm" onClick={() => {
+              setSelectedPriorityFilter('all');
+              // Potentially reset other filters here if added in the future
+            }}>
+              Clear Filters
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Task Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {taskStats.map((stat, index) => (
+          <Card key={index}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {stat.title}
+              </CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <p className="text-xs text-muted-foreground">
+                {stat.description}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="all">All Tasks</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="overdue">Overdue</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search tasks..." className="pl-8 w-[250px]" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
             </div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              {includeCreated 
-                ? "No tasks found in this category" 
-                : "No tasks assigned to you in this category"}
-            </div>
+            
+            <ViewSwitcher 
+              currentView={currentView} 
+              onViewChange={setCurrentView}
+              availableViews={['list', 'kanban', 'gallery']}
+            />
+          </div>
+        </div>
+
+        <TabsContent value={selectedTab} className="space-y-4">
+          {filteredTasks.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  {tasks.length === 0 
+                    ? "You don't have any tasks assigned yet."
+                    : "No tasks match your current filter criteria."
+                  }
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid gap-4">
-              {filteredTasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
+            <div className={currentView === 'kanban' ? 'h-[600px]' : ''}>
+              {currentView === 'kanban' && (
+                <KanbanView 
+                  tasks={filteredTasks}
+                  onTaskUpdate={handleTaskUpdate}
+                  onTaskCreate={handleTaskCreate}
+                  onTaskClick={handleTaskClick}
+                />
+              )}
+              
+              {currentView === 'gallery' && (
+                <GalleryView 
+                  items={filteredTasks}
+                  type="tasks"
+                  onItemUpdate={handleItemUpdate}
+                  onItemClick={handleTaskClick}
+                />
+              )}
+              
+              {currentView === 'list' && (
+                <ListView 
+                  items={filteredTasks}
+                  type="tasks"
+                  onItemUpdate={handleItemUpdate}
+                  onItemClick={handleTaskClick}
+                />
+              )}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create New Task Modal */}
+      {isCreateTaskModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg bg-card">
+            <CardHeader>
+              <CardTitle>Create New Task</CardTitle>
+              <CardDescription>Fill in the details below to create a new task.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const tags = formData.get('tags') as string;
+                const taskData = {
+                  title: formData.get('title') as string,
+                  description: formData.get('description') as string,
+                  status: (formData.get('status') as Task['status']) || 'todo',
+                  priority: (formData.get('priority') as Task['priority']) || 'medium',
+                  dueDate: formData.get('dueDate') as string || undefined,
+                  assignedBy: 'Current User', // Placeholder
+                  // assignedByAvatar: '', // Will be set by backend or a user profile service
+                  tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+                  progress: 0,
+                  estimatedHours: parseInt(formData.get('estimatedHours') as string) || 0,
+                  loggedHours: 0,
+                  project: formData.get('project') as string || 'Default Project',
+                  projectId: formData.get('projectId') as string || '1', // Placeholder
+                };
+                handleDetailedTaskCreate(taskData);
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="title" className="block text-sm font-medium mb-1">Title</label>
+                    <Input id="title" name="title" placeholder="Enter task title" required />
+                  </div>
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
+                    <textarea id="description" name="description" rows={3} className="w-full p-2 border rounded-md" placeholder="Enter task description"></textarea>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="status" className="block text-sm font-medium mb-1">Status</label>
+                      <Select name="status" defaultValue="todo">
+                        <SelectTrigger id="status"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="in-review">In Review</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label htmlFor="priority" className="block text-sm font-medium mb-1">Priority</label>
+                      <Select name="priority" defaultValue="medium">
+                        <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="dueDate" className="block text-sm font-medium mb-1">Due Date</label>
+                      <Input id="dueDate" name="dueDate" type="date" />
+                    </div>
+                    <div>
+                      <label htmlFor="estimatedHours" className="block text-sm font-medium mb-1">Estimated Hours</label>
+                      <Input id="estimatedHours" name="estimatedHours" type="number" placeholder="0" min="0"/>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="project" className="block text-sm font-medium mb-1">Project</label>
+                    <Input id="project" name="project" placeholder="Enter project name or ID" />
+                  </div>
+                   <div>
+                    <label htmlFor="tags" className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                    <Input id="tags" name="tags" placeholder="e.g., design, frontend, bug" />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2 mt-6">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateTaskModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Create Task</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          isOpen={isTaskDetailModalOpen}
+          onClose={() => {
+            setIsTaskDetailModalOpen(false);
+            setSelectedTask(null);
+          }}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      )}
     </div>
-  );
-}
-
-// Status badge colors
-const statusColors: Record<TaskStatus, string> = {
-  TODO: "bg-amber-500",
-  IN_PROGRESS: "bg-blue-500",
-  DONE: "bg-green-500",
-};
-
-// Status display names
-const statusNames: Record<TaskStatus, string> = {
-  TODO: "To Do",
-  IN_PROGRESS: "In Progress",
-  DONE: "Completed",
-};
-
-// Priority colors
-const priorityColors: Record<string, string> = {
-  LOW: "bg-blue-500",
-  MEDIUM: "bg-amber-500",
-  HIGH: "bg-red-500",
-};
-
-function TaskCard({ task }: { task: Task }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-xl">{task.title}</CardTitle>
-            <CardDescription className="mt-1 text-sm">
-              Project: <Link href={`/projects/${task.projectId}`} className="hover:underline text-primary">
-                View Project
-              </Link>
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            {task.priority && (
-              <Badge className={priorityColors[task.priority]}>
-                {task.priority}
-              </Badge>
-            )}
-            <Badge className={statusColors[task.status]}>
-              {statusNames[task.status]}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          {task.description || "No description provided"}
-        </p>
-        
-        {task.attachmentUrl && (
-          <div className="mb-4">
-            <p className="text-sm font-medium mb-2">Attachment</p>
-            <AttachmentViewer url={task.attachmentUrl} alt={`Attachment for ${task.title}`} />
-          </div>
-        )}
-        
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          {task.dueDate && (
-            <div className="flex items-center">
-              <Calendar className="mr-1 h-4 w-4" />
-              Due: {new Date(task.dueDate).toLocaleDateString()}
-            </div>
-          )}
-          <div className="flex items-center">
-            <Clock className="mr-1 h-4 w-4" />
-            Created: {new Date(task.createdAt).toLocaleDateString()}
-          </div>
-        </div>
-      </CardContent>
-      
-      <CardFooter>
-        <Link href={`/projects/${task.projectId}?task=${task.id}`} className="w-full">
-          <Button variant="outline" className="w-full">
-            View Details
-          </Button>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
+  )
 } 

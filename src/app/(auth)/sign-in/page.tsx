@@ -1,9 +1,7 @@
 "use client"
 
-import AuthCard from "@/components/auth-card"
+import LoginForm from "@/components/auth/login-form"
 
 export default function SignInPage() {
-    return (
-        <AuthCard title="Sign in" description="Sign in to your account using your preferred provider" mode="sign-in" />
-    )
+    return <LoginForm />
 }

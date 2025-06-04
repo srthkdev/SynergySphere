@@ -1,98 +1,89 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { task, projectMember } from "@/lib/db/schema";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
-import { v4 as uuidv4 } from "uuid";
+import { task, project } from "@/lib/db/schema";
+import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { canAccessProject } from "@/lib/project-auth";
+import { validateRequestBody, createTaskSchema } from "@/lib/validation";
 
-// GET /api/projects/[id]/tasks - Get all tasks for a project
-export async function GET(
-  req: NextRequest,
+// GET /api/projects/:id/tasks - Get all tasks for a specific project
+export const GET = requireAuth(async (
+  request: NextRequest,
+  user: AuthenticatedUser,
   { params }: { params: { id: string } }
-) {
+) => {
   try {
-    await Promise.resolve();
-    const currentUser = await getUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const projectId = params.id;
 
-    const projectId = (await params).id;
-
-    // Verify user is a member of the project
-    const [member] = await db
-      .select()
-      .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-
-    if (!member) {
-      return NextResponse.json({ error: "Forbidden: You are not a member of this project" }, { status: 403 });
+    // Check if user can access this project
+    const hasAccess = await canAccessProject(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied to project" }, { status: 403 });
     }
 
     const projectTasks = await db
-      .select()
+      .select({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        projectId: task.projectId,
+        assigneeId: task.assigneeId,
+        createdById: task.createdById,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        attachmentUrl: task.attachmentUrl,
+      })
       .from(task)
       .where(eq(task.projectId, projectId))
-      .orderBy(desc(task.createdAt));
+      .orderBy(task.createdAt);
 
     return NextResponse.json(projectTasks);
   } catch (error) {
-    console.error("Error fetching tasks:", error);
-    return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
+    console.error("Error fetching project tasks:", error);
+    return NextResponse.json({ error: "Failed to fetch project tasks" }, { status: 500 });
   }
-}
+});
 
-// POST /api/projects/[id]/tasks - Create a new task for a project
-export async function POST(
-  req: NextRequest,
+// POST /api/projects/:id/tasks - Create a new task for a specific project
+export const POST = requireAuth(async (
+  request: NextRequest,
+  user: AuthenticatedUser,
   { params }: { params: { id: string } }
-) {
+) => {
   try {
-    const { title, description, status, dueDate, assigneeId, priority, attachmentUrl } = await req.json();
-    const currentUser = await getUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const projectId = params.id;
+    const body = await request.json();
+
+    // Check if user can access this project
+    const hasAccess = await canAccessProject(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied to project" }, { status: 403 });
     }
 
-    const projectId = (await params).id;
-
-    // Verify user is a member of the project
-    const [member] = await db
-      .select()
-      .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-      
-    if (!member) {
-      return NextResponse.json({ error: "Forbidden: You can only create tasks for projects you are a member of" }, { status: 403 });
+    // Validate input
+    const validation = validateRequestBody(createTaskSchema, { ...body, projectId });
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    if (!title || title.trim() === "") {
-      return NextResponse.json({ error: "Task title is required" }, { status: 400 });
-    }
+    const { title, description, assigneeId, priority, dueDate } = validation.data;
 
-    const taskId = uuidv4();
-    const now = new Date();
-
-    const newTask = {
-      id: taskId,
+    const [newTask] = await db.insert(task).values({
       title,
       description,
-      status: status || 'TODO',
-      dueDate: dueDate ? new Date(dueDate) : null,
       projectId,
       assigneeId,
-      createdById: currentUser.id,
-      createdAt: now,
-      updatedAt: now,
-      priority: priority || 'MEDIUM',
-      attachmentUrl,
-    };
-
-    await db.insert(task).values(newTask);
+      createdById: user.id,
+      priority,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    }).returning();
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);
     return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   }
-} 
+}); 

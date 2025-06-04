@@ -1,0 +1,510 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { 
+  FolderOpen,
+  Calendar,
+  Users,
+  Clock,
+  Target,
+  TrendingUp,
+  Plus,
+  Filter,
+  Search,
+  MoreVertical,
+  Edit3,
+  Trash2,
+  Eye,
+  Settings,
+  CheckCircle,
+  AlertCircle,
+  Star,
+  Archive,
+  Share,
+  GitBranch,
+  DollarSign,
+  Play,
+  Pause,
+  AlertTriangle,
+  MoreHorizontal,
+  Edit,
+  X
+} from "lucide-react"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import Link from "next/link"
+
+// Import the new view components
+import { ViewSwitcher, ViewMode } from "@/components/ui/view-switcher"
+import { GalleryView } from "@/components/views/gallery-view"
+import { ListView } from "@/components/views/list-view"
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  status: 'planning' | 'active' | 'on-hold' | 'completed';
+  priority: 'low' | 'medium' | 'high';
+  progress: number;
+  startDate: string;
+  endDate?: string;
+  budget: number;
+  spent: number;
+  teamSize: number;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: string;
+  assignedBy: string;
+  assignedByAvatar: string;
+  tags: string[];
+  progress: number;
+  estimatedHours: number;
+  loggedHours: number;
+  project: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const projectStats = [
+  {
+    title: "Total Projects",
+    value: "0",
+    icon: Target,
+    description: "All projects"
+  },
+  {
+    title: "Active", 
+    value: "0",
+    icon: TrendingUp,
+    description: "Currently running"
+  },
+  {
+    title: "Completed",
+    value: "0", 
+    icon: Star,
+    description: "Successfully finished"
+  },
+  {
+    title: "At Risk",
+    value: "0",
+    icon: AlertTriangle,
+    description: "Need attention"
+  }
+];
+
+function getPriorityColor(priority: string) {
+  switch (priority) {
+    case 'high': return 'bg-red-100 text-red-800';
+    case 'medium': return 'bg-yellow-100 text-yellow-800';
+    case 'low': return 'bg-green-100 text-green-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'completed': return 'bg-green-100 text-green-800';
+    case 'active': return 'bg-blue-100 text-blue-800';
+    case 'on-hold': return 'bg-orange-100 text-orange-800';
+    case 'planning': return 'bg-purple-100 text-purple-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTab, setSelectedTab] = useState('all');
+  const [currentView, setCurrentView] = useState<ViewMode>('gallery');
+  const [selectedPriority, setSelectedPriority] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+
+  // Fetch projects from API
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const response = await fetch('/api/projects');
+        if (!response.ok) {
+          throw new Error('Failed to fetch projects');
+        }
+        const data = await response.json();
+        setProjects(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProjects();
+  }, []);
+
+  // Calculate project statistics
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(project => project.status === 'active').length;
+  const completedProjects = projects.filter(project => project.status === 'completed').length;
+  const atRiskProjects = projects.filter(project => {
+    const budgetUsage = project.spent / project.budget;
+    return budgetUsage > 0.8 && project.status === 'active';
+  }).length;
+
+  // Update project stats
+  projectStats[0].value = totalProjects.toString();
+  projectStats[1].value = activeProjects.toString();
+  projectStats[2].value = completedProjects.toString();
+  projectStats[3].value = atRiskProjects.toString();
+
+  // Filter projects based on search, tab, and priority
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesPriority = selectedPriority === 'all' || project.priority === selectedPriority;
+    
+    switch (selectedTab) {
+      case 'active':
+        return matchesSearch && matchesPriority && project.status === 'active';
+      case 'completed':
+        return matchesSearch && matchesPriority && project.status === 'completed';
+      case 'planning':
+        return matchesSearch && matchesPriority && project.status === 'planning';
+      default:
+        return matchesSearch && matchesPriority;
+    }
+  });
+
+  // Handle project creation
+  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create project');
+      }
+
+      const newProject = await response.json();
+      setProjects([...projects, newProject]);
+      setIsCreateProjectOpen(false);
+    } catch (err) {
+      console.error('Error creating project:', err);
+    }
+  };
+
+  // Handle project updates from views
+  const handleProjectUpdate = async (projectId: string, updates: Partial<Project>) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update project');
+      }
+
+      const updatedProject = await response.json();
+      setProjects(projects.map(project => project.id === projectId ? updatedProject : project));
+    } catch (err) {
+      console.error('Error updating project:', err);
+    }
+  };
+
+  // Handle project click
+  const handleProjectClick = (item: Task | Project) => {
+    const project = item as Project;
+    // Navigate to project detail page
+    window.location.href = `/projects/${project.id}`;
+  };
+
+  // Handle item update (for compatibility with views)
+  const handleItemUpdate = (itemId: string, updates: any) => {
+    return handleProjectUpdate(itemId, updates);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading projects...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+          <p className="text-muted-foreground">
+            Manage your projects and track their progress
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="mr-2 h-4 w-4" />
+            Filter
+          </Button>
+          <Button onClick={() => setIsCreateProjectOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Project
+          </Button>
+        </div>
+      </div>
+
+      {/* Advanced Filters */}
+      {showFilters && (
+        <Card className="p-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium">Priority:</label>
+              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => {
+              setSelectedPriority('all');
+              setSearchTerm('');
+              setSelectedTab('all');
+            }}>
+              Clear Filters
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Project Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {projectStats.map((stat, index) => (
+          <Card key={index}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {stat.title}
+              </CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <p className="text-xs text-muted-foreground">
+                {stat.description}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="all">All Projects</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="planning">Planning</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search projects..." className="pl-8 w-[250px]" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+            </div>
+            
+            <ViewSwitcher 
+              currentView={currentView} 
+              onViewChange={setCurrentView}
+              availableViews={['gallery', 'list']}
+            />
+          </div>
+        </div>
+
+        <TabsContent value={selectedTab} className="space-y-4">
+          {filteredProjects.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  {projects.length === 0 
+                    ? "You don't have any projects yet."
+                    : "No projects match your current filter criteria."
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
+              {currentView === 'gallery' && (
+                <GalleryView 
+                  items={filteredProjects}
+                  type="projects"
+                  onItemUpdate={handleItemUpdate}
+                  onItemClick={handleProjectClick}
+                />
+              )}
+              
+              {currentView === 'list' && (
+                <ListView 
+                  items={filteredProjects}
+                  type="projects"
+                  onItemUpdate={handleItemUpdate}
+                  onItemClick={handleProjectClick}
+                />
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Project Modal */}
+      {isCreateProjectOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Create New Project</h2>
+              <Button variant="ghost" size="sm" onClick={() => setIsCreateProjectOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target as HTMLFormElement);
+              const projectData = {
+                name: formData.get('name') as string,
+                description: formData.get('description') as string,
+                priority: (formData.get('priority') as string) as 'low' | 'medium' | 'high',
+                budget: parseFloat(formData.get('budget') as string) || 0,
+                startDate: formData.get('startDate') as string,
+                endDate: formData.get('endDate') as string,
+                status: 'planning' as const,
+                progress: 0,
+                spent: 0,
+                teamSize: 1,
+                tags: []
+              };
+              handleCreateProject(projectData);
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Project Name</label>
+                  <Input name="name" placeholder="Enter project name" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <textarea 
+                    name="description" 
+                    className="w-full p-2 border rounded-md resize-none" 
+                    rows={3} 
+                    placeholder="Enter project description"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Priority</label>
+                    <Select name="priority" defaultValue="medium">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Budget</label>
+                    <Input name="budget" type="number" placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Start Date</label>
+                    <Input name="startDate" type="date" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">End Date</label>
+                    <Input name="endDate" type="date" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button type="button" variant="outline" onClick={() => setIsCreateProjectOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Create Project
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+} 

@@ -1,26 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { siteConfig } from "@/config/site.config";
 import { cn } from "@/lib/utils";
 import RootProviders from "@/components/providers";
+import { Toaster } from "@/components/ui/sonner";
 
-const fontSans = Manrope({
+const fontSans = Inter({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: "swap",
-  variable: "--font-manrope",
 });
 
-const inter = Inter({
+const fontMono = JetBrains_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
-  display: "swap",
+});
+
+const fontHeading = Inter({
   variable: "--font-inter",
-});
-
-const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
-  display: "swap",
-  variable: "--font-jetbrains",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -38,6 +37,16 @@ export const metadata: Metadata = {
     },
   ],
   creator: siteConfig.creator.name,
+  icons: [
+    {
+      url: "/favicon-light.png",
+      media: "(prefers-color-scheme: light)",
+    },
+    {
+      url: "/favicon-dark.png", 
+      media: "(prefers-color-scheme: dark)",
+    },
+  ],
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -61,11 +70,6 @@ export const metadata: Metadata = {
     images: [siteConfig.og],
     creator: "@Tibame",
   },
-  icons: {
-    icon: "/goku.svg",
-    shortcut: "/goku.svg",
-    apple: "/goku.svg",
-  },
 };
 
 export const viewport: Viewport = {
@@ -86,13 +90,14 @@ export default function RootLayout({
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
-          inter.variable,
-          jetbrains.variable
+          fontHeading.variable,
+          fontMono.variable
         )}
       >
         <RootProviders>
           {children}
         </RootProviders>
+        <Toaster />
       </body>
     </html>
   );

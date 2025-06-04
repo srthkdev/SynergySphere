@@ -5,32 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1747230620435,
-      "tag": "0000_deep_obadiah_stane",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1747545238961,
-      "tag": "0001_motionless_justin_hammer",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-      "when": 1747563463846,
-      "tag": "0002_flaky_firestar",
-=======
-      "when": 1747560478794,
-      "tag": "0002_hot_centennial",
->>>>>>> Stashed changes
-=======
-      "when": 1747560478794,
-      "tag": "0002_hot_centennial",
->>>>>>> Stashed changes
+      "when": 1749031804159,
+      "tag": "0000_friendly_talos",
       "breakpoints": true
     }
   ]
