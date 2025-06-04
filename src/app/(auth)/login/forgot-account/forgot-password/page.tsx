@@ -1,13 +1,23 @@
 "use client"
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { forgetPassword } from "@/lib/auth/auth-client";
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+<<<<<<< HEAD
 import { useState, Suspense } from "react";
 
 function ForgotPasswordForm() {
+=======
+import { useState } from "react";
+
+export default  function page() {
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
     const params = useSearchParams();
     const emailFromQuery = params.get('email') || " ";
     const [email, setEmail] = useState(emailFromQuery);
@@ -50,6 +60,7 @@ function ForgotPasswordForm() {
     {message && <p>{message}</p>}
 </form>
     )
+<<<<<<< HEAD
 }
 
 export default function page() {
@@ -59,3 +70,6 @@ export default function page() {
         </Suspense>
     )
 }
+=======
+    }
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc

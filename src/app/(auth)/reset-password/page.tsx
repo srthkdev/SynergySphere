@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LogoIcon } from "@/components/logo"
 import Link from "next/link"
+<<<<<<< HEAD
 import { useState, useEffect, Suspense } from "react"
+=======
+import { useState, useEffect } from "react"
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -24,7 +28,11 @@ const resetPasswordSchema = z.object({
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>
 
+<<<<<<< HEAD
 function ResetPasswordForm() {
+=======
+export default function ResetPasswordPage() {
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
   const [isLoading, setIsLoading] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const router = useRouter()
@@ -177,6 +185,7 @@ function ResetPasswordForm() {
       </form>
     </section>
   )
+<<<<<<< HEAD
 }
 
 export default function ResetPasswordPage() {
@@ -185,4 +194,6 @@ export default function ResetPasswordPage() {
       <ResetPasswordForm />
     </Suspense>
   )
+=======
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
 } 

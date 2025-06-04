@@ -4,9 +4,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { resetPassword } from '@/lib/auth/auth-client';
 import { useRouter, useSearchParams } from 'next/navigation';
+<<<<<<< HEAD
 import React, { useEffect, useState, Suspense } from 'react'
 
 function ResetPasswordForm() {
+=======
+import React, { useEffect, useState } from 'react'
+
+export default function page() {
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
     const searchParams = useSearchParams();
@@ -57,6 +63,7 @@ function ResetPasswordForm() {
         <Button type="submit">Reset Password</Button>
     </form>
   )
+<<<<<<< HEAD
 }
 
 export default function page() {
@@ -65,4 +72,6 @@ export default function page() {
             <ResetPasswordForm />
         </Suspense>
     )
+=======
+>>>>>>> 2d73b256ebf336f6203ab2f362675f8c28d39cfc
 }
