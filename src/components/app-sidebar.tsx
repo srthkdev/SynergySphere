@@ -104,12 +104,8 @@ const navMain = [
         url: "/settings/profile",
       },
       {
-        title: "Team",
-        url: "/settings/team",
-      },
-      {
-        title: "Preferences",
-        url: "/settings/preferences",
+        title: "Appearance",
+        url: "/settings/appearance",
       },
     ],
   },

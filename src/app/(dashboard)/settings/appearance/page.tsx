@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function PreferencesSettingsPage() {
+export default function AppearanceSettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export default function PreferencesSettingsPage() {
 
   return (
     <div className="flex items-center justify-center h-64">
-      <div className="text-lg">Redirecting to preferences...</div>
+      <div className="text-lg">Redirecting to appearance settings...</div>
     </div>
   );
 } 
