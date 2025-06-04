@@ -10,10 +10,10 @@ import { validateRequestBody, createTaskSchema } from "@/lib/validation";
 export const GET = requireAuth(async (
   request: NextRequest,
   user: AuthenticatedUser,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
 
     // Check if user can access this project
     const hasAccess = await canAccessProject(user.id, projectId);
@@ -51,10 +51,10 @@ export const GET = requireAuth(async (
 export const POST = requireAuth(async (
   request: NextRequest,
   user: AuthenticatedUser,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const body = await request.json();
 
     // Check if user can access this project

@@ -24,33 +24,19 @@ const priorityOptions = [
   { value: 'HIGH', label: 'High' },
 ];
 
-// Create a function that returns the appropriate schema based on whether we're editing
-const getTaskFormSchema = (isEditing: boolean) => {
-  if (isEditing) {
-    return z.object({
-      title: z.string().optional().default(""),
-      description: z.string().optional().default(""),
-      status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).default('TODO'),
-      dueDate: z.string().optional().default(""),
-      assigneeId: z.string().optional().nullable(),
-      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
-      attachmentUrl: z.string().optional().nullable(),
-    });
-  } else {
-    return z.object({
-      title: z.string().min(1, "Title is required").max(100),
-      description: z.string().optional().default(""),
-      status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).default('TODO'),
-      dueDate: z.string().optional().default(""),
-      assigneeId: z.string().optional().nullable(),
-      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
-      attachmentUrl: z.string().optional().nullable(),
-    });
-  }
-};
+// Create a unified schema for both creating and editing
+const taskFormSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
+  description: z.string().default(""),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).default('TODO'),
+  dueDate: z.string().default(""),
+  assigneeId: z.string().optional().nullable(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
+  attachmentUrl: z.string().optional().nullable(),
+});
 
 // Create a type from our schema
-type TaskFormValues = z.infer<ReturnType<typeof getTaskFormSchema>>;
+type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 interface CreateEditTaskDialogProps {
   open: boolean;
@@ -94,9 +80,8 @@ export function CreateEditTaskDialog({
   });
 
   const isEditing = !!taskToEdit;
-  const taskFormSchema = getTaskFormSchema(isEditing);
 
-  const form = useForm<TaskFormValues>({
+  const form = useForm({
     resolver: zodResolver(taskFormSchema),
     defaultValues: taskToEdit 
       ? { 

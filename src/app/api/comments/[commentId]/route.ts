@@ -7,16 +7,15 @@ import { getUser } from "@/lib/auth-utils";
 // PATCH /api/comments/[commentId] - Update a comment
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { commentId: string } }
+  { params }: { params: Promise<{ commentId: string }> }
 ) {
   try {
-    await Promise.resolve();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const commentId = (await params).commentId;
+    const { commentId } = await params;
     const { content } = await req.json();
 
     if (!content || content.trim() === "") {
@@ -62,16 +61,15 @@ export async function PATCH(
 // DELETE /api/comments/[commentId] - Delete a comment
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { commentId: string } }
+  { params }: { params: Promise<{ commentId: string }> }
 ) {
   try {
-    await Promise.resolve();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const commentId = (await params).commentId;
+    const { commentId } = await params;
 
     const [existingComment] = await db.select().from(comment).where(eq(comment.id, commentId));
 

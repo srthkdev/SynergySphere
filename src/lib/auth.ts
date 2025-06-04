@@ -11,36 +11,13 @@ export const auth = betterAuth({
   emailAndPassword: { 
     enabled: true, 
   }, 
-  providers: {
-    credentials: {
-      authorize: async ({ email, password }: { email: string; password: string }) => {
-        // In a real implementation, you would validate the credentials against your database
-        // For now, just accept any email/password combination for testing
-        if (email && password) {
-          return {
-            id: "123",
-            email,
-            name: email.split("@")[0],
-          };
-        }
-        
-        return null;
-      },
-    }
-  },
   socialProviders: {
-    // github: {
-    //   clientId: env.GITHUB_CLIENT_ID,
-    //   clientSecret: env.GITHUB_CLIENT_SECRET,
-    // },
     google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      clientId: env.GOOGLE_CLIENT_ID || "",
+      clientSecret: env.GOOGLE_CLIENT_SECRET || "",
     },
-    // discord: {
-    //   clientId: env.DISCORD_CLIENT_ID,
-    //   clientSecret: env.DISCORD_CLIENT_SECRET,
-    // }
   },
-  plugins: [nextCookies()]
+  plugins: [nextCookies()], 
+  secret: env.BETTER_AUTH_SECRET || "your-secret-key-here",
+  baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
 });

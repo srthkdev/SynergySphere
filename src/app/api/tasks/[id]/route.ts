@@ -10,10 +10,11 @@ import { validateRequestBody, updateTaskSchema } from "@/lib/validation";
 export const GET = requireAuth(async (
   request: NextRequest,
   user: AuthenticatedUser,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
-    const [foundTask] = await db.select().from(task).where(eq(task.id, params.id));
+    const { id } = await params;
+    const [foundTask] = await db.select().from(task).where(eq(task.id, id));
     
     if (!foundTask) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -36,13 +37,14 @@ export const GET = requireAuth(async (
 export const PUT = requireAuth(async (
   request: NextRequest,
   user: AuthenticatedUser,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     // Get the task to check project access
-    const [existingTask] = await db.select().from(task).where(eq(task.id, params.id));
+    const [existingTask] = await db.select().from(task).where(eq(task.id, id));
     if (!existingTask) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
@@ -73,7 +75,7 @@ export const PUT = requireAuth(async (
     const [updatedTask] = await db
       .update(task)
       .set(updateData)
-      .where(eq(task.id, params.id))
+      .where(eq(task.id, id))
       .returning();
 
     return NextResponse.json(updatedTask);
@@ -87,11 +89,13 @@ export const PUT = requireAuth(async (
 export const DELETE = requireAuth(async (
   request: NextRequest,
   user: AuthenticatedUser,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
+    
     // Get the task to check project access
-    const [existingTask] = await db.select().from(task).where(eq(task.id, params.id));
+    const [existingTask] = await db.select().from(task).where(eq(task.id, id));
     if (!existingTask) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
@@ -104,7 +108,7 @@ export const DELETE = requireAuth(async (
 
     const [deletedTask] = await db
       .delete(task)
-      .where(eq(task.id, params.id))
+      .where(eq(task.id, id))
       .returning();
 
     return NextResponse.json({ message: "Task deleted successfully" });

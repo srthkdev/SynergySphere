@@ -1,140 +1,68 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { comment, projectMember, user } from "@/lib/db/schema";
-import { and, desc, eq, asc, sql } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { comment } from "@/lib/db/schema";
+import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { canAccessProject } from "@/lib/project-auth";
 import { v4 as uuidv4 } from "uuid";
 
-// GET /api/projects/[id]/comments
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// GET /api/projects/:id/comments - Get all comments for a specific project
+export const GET = requireAuth(async (
+  request: NextRequest,
+  user: AuthenticatedUser,
+  { params }: { params: Promise<{ id: string }> }
+) => {
   try {
-    await Promise.resolve();
-    const currentUser = await getUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id: projectId } = await params;
+
+    // Check if user can access this project
+    const hasAccess = await canAccessProject(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied to project" }, { status: 403 });
     }
 
-    const projectId = params.id;
-    const taskId = req.nextUrl.searchParams.get("taskId");
-    const parentId = req.nextUrl.searchParams.get("parentId");
-
-    // Verify user is a member of the project
-    const [member] = await db
+    const projectComments = await db
       .select()
-      .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-    if (!member) {
-      return NextResponse.json({ error: "Forbidden: Not a project member" }, { status: 403 });
-    }
-
-    const conditions = [eq(comment.projectId, projectId)];
-    if (taskId) {
-      conditions.push(eq(comment.taskId, taskId));
-    } else {
-      // If no taskId is provided, fetch only project-level comments (taskId is null)
-      conditions.push(sql`${comment.taskId} IS NULL`);
-    }
-    if (parentId !== null && parentId !== undefined) {
-      if (parentId === "") {
-        // Top-level comments (parentId is null)
-        conditions.push(sql`${comment.parentId} IS NULL`);
-      } else {
-        conditions.push(eq(comment.parentId, parentId));
-      }
-    }
-
-    const commentsData = await db
-      .select({
-        id: comment.id,
-        content: comment.content,
-        projectId: comment.projectId,
-        taskId: comment.taskId,
-        parentId: comment.parentId,
-        authorId: comment.authorId,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        authorName: user.name,
-        authorImage: user.image,
-      })
       .from(comment)
-      .innerJoin(user, eq(comment.authorId, user.id))
-      .where(and(...conditions))
-      .orderBy(asc(comment.createdAt)); // Show oldest first for typical discussion flow
+      .where(eq(comment.projectId, projectId))
+      .orderBy(comment.createdAt);
 
-    return NextResponse.json(commentsData);
+    return NextResponse.json(projectComments);
   } catch (error) {
-    console.error("Error fetching comments:", error);
-    return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
+    console.error("Error fetching project comments:", error);
+    return NextResponse.json({ error: "Failed to fetch project comments" }, { status: 500 });
   }
-}
+});
 
-// POST /api/projects/[id]/comments
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// POST /api/projects/:id/comments - Create a new comment for a specific project
+export const POST = requireAuth(async (
+  request: NextRequest,
+  user: AuthenticatedUser,
+  { params }: { params: Promise<{ id: string }> }
+) => {
   try {
-    const { content, taskId, parentId } = await req.json();
-    const currentUser = await getUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id: projectId } = await params;
+    const { content } = await request.json();
+
+    // Check if user can access this project
+    const hasAccess = await canAccessProject(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied to project" }, { status: 403 });
     }
 
-    const projectId = params.id;
-
-    if (!content || content.trim() === "") {
-      return NextResponse.json({ error: "Comment content cannot be empty" }, { status: 400 });
+    if (!content?.trim()) {
+      return NextResponse.json({ error: "Comment content is required" }, { status: 400 });
     }
 
-    // Verify user is a member of the project
-    const [member] = await db
-      .select()
-      .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-    if (!member) {
-      return NextResponse.json({ error: "Forbidden: Not a project member" }, { status: 403 });
-    }
-
-    const commentId = uuidv4();
-    const now = new Date();
-
-    const newCommentData = {
-      id: commentId,
-      content: content.trim(),
+    const [newComment] = await db.insert(comment).values({
+      content,
       projectId,
-      taskId: taskId || null, // Ensure taskId is null if not provided
-      parentId: parentId ?? null, // For threaded comments
-      authorId: currentUser.id,
-      createdAt: now,
-      updatedAt: now,
-    };
+      authorId: user.id,
+    }).returning();
 
-    await db.insert(comment).values(newCommentData);
-    
-    // Return the created comment with author info
-    const [createdCommentWithAuthor] = await db
-      .select({
-        id: comment.id,
-        content: comment.content,
-        projectId: comment.projectId,
-        taskId: comment.taskId,
-        parentId: comment.parentId,
-        authorId: comment.authorId,
-        createdAt: comment.createdAt,
-        updatedAt: comment.updatedAt,
-        authorName: user.name,
-        authorImage: user.image,
-      })
-      .from(comment)
-      .innerJoin(user, eq(comment.authorId, user.id))
-      .where(eq(comment.id, commentId));
-
-    return NextResponse.json(createdCommentWithAuthor, { status: 201 });
+    return NextResponse.json(newComment, { status: 201 });
   } catch (error) {
     console.error("Error creating comment:", error);
     return NextResponse.json({ error: "Failed to create comment" }, { status: 500 });
   }
-} 
+}); 

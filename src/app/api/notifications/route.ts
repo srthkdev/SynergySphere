@@ -1,73 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { notification, project } from "@/lib/db/schema"; // Assuming project might be needed for context
-import { and, desc, eq, isNull, or, inArray } from "drizzle-orm";
+import { notification } from "@/lib/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { getUser } from "@/lib/auth-utils";
 
-// GET /api/notifications - Get (optionally unread) notifications for the current user
+// GET /api/notifications - Get user notifications
 export async function GET(req: NextRequest) {
   try {
+    await Promise.resolve();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const unreadOnly = search(await params).get("unread") === "true";
+    const unreadOnly = searchParams.get("unread") === "true";
 
     const conditions = [eq(notification.userId, currentUser.id)];
     if (unreadOnly) {
       conditions.push(eq(notification.isRead, false));
     }
 
-    const userNotifications = await db
+    const notifications = await db
       .select()
       .from(notification)
       .where(and(...conditions))
       .orderBy(desc(notification.createdAt))
-      .limit(50); // Add a limit for performance
+      .limit(50); // Limit to recent 50 notifications
 
-    return NextResponse.json(userNotifications);
+    return NextResponse.json(notifications);
+
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
   }
 }
 
-// POST /api/notifications/mark-read - Mark notifications as read
+// POST /api/notifications - Create a notification (for testing purposes)
 export async function POST(req: NextRequest) {
   try {
+    const { message, type, projectId, taskId } = await req.json();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { notificationIds, markAllAsRead } = await req.json();
-
-    if (markAllAsRead) {
-      await db
-        .update(notification)
-        .set({ isRead: true })
-        .where(and(eq(notification.userId, currentUser.id), eq(notification.isRead, false)));
-      return NextResponse.json({ success: true, message: "All unread notifications marked as read." });
+    if (!message || !type) {
+      return NextResponse.json({ error: "Message and type are required" }, { status: 400 });
     }
 
-    if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0) {
-      return NextResponse.json({ error: "Notification IDs are required" }, { status: 400 });
-    }
+    const [newNotification] = await db
+      .insert(notification)
+      .values({
+        userId: currentUser.id,
+        message,
+        type,
+        projectId: projectId || null,
+        taskId: taskId || null,
+      })
+      .returning();
 
-    // Ensure all provided IDs belong to the current user before updating
-    await db
-      .update(notification)
-      .set({ isRead: true })
-      .where(and(
-        eq(notification.userId, currentUser.id),
-        inArray(notification.id, notificationIds)
-      ));
+    return NextResponse.json(newNotification, { status: 201 });
 
-    return NextResponse.json({ success: true, markedIds: notificationIds });
   } catch (error) {
-    console.error("Error marking notifications as read:", error);
-    return NextResponse.json({ error: "Failed to mark notifications as read" }, { status: 500 });
+    console.error("Error creating notification:", error);
+    return NextResponse.json({ error: "Failed to create notification" }, { status: 500 });
   }
 } 

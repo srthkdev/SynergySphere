@@ -16,7 +16,7 @@ async function isProjectAdmin(projectId: string, userId: string): Promise<boolea
 // DELETE /api/projects/[id]/members/[memberId] - Remove a member from a project
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   try {
     await Promise.resolve();
@@ -25,8 +25,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const projectId = (await params).id;
-    const memberId = (await params).memberId;
+    const { id: projectId, memberId } = await params;
 
     // Only project admins can remove members, OR a user can remove themselves
     const isAdmin = await isProjectAdmin(projectId, currentUser.id);
@@ -66,7 +65,7 @@ export async function DELETE(
 // PATCH /api/projects/[id]/members/[memberId] - Update a member's role
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   try {
     const { role } = await req.json();
@@ -75,8 +74,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const projectId = (await params).id;
-    const memberId = (await params).memberId;
+    const { id: projectId, memberId } = await params;
 
     if (!role || (role !== 'admin' && role !== 'member')) {
         return NextResponse.json({ error: "Invalid role specified. Must be 'admin' or 'member'." }, { status: 400 });
@@ -99,7 +97,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Cannot change the role of the last admin to non-admin." }, { status: 400 });
         }
     }
-
 
     const [updatedMember] = await db
       .update(projectMember)

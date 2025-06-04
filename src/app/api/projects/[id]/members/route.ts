@@ -15,130 +15,137 @@ async function isProjectAdmin(projectId: string, userId: string): Promise<boolea
   return !!member;
 }
 
-// GET /api/projects/[id]/members - List all members of a project
+// GET /api/projects/[id]/members - Get all members of a project
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await Promise.resolve();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const projectId = (await Promise.resolve(params)).id;
+    const { id: projectId } = await params;
 
-    // Verify current user is a member of the project to view other members
-    const [isMember] = await db.select().from(projectMember)
+    // Check if the current user is a member of the project
+    const [member] = await db
+      .select()
+      .from(projectMember)
       .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-    if (!isMember) {
-      return NextResponse.json({ error: "Forbidden: Not a project member" }, { status: 403 });
+
+    if (!member) {
+      return NextResponse.json({ error: "Forbidden: You are not a member of this project" }, { status: 403 });
     }
 
+    // Fetch all members of the project with their user details
     const members = await db
       .select({
-        id: user.id,
+        id: projectMember.id,
+        userId: projectMember.userId,
+        projectId: projectMember.projectId,
+        role: projectMember.role,
+        joinedAt: projectMember.joinedAt,
         name: user.name,
         email: user.email,
         image: user.image,
-        role: projectMember.role,
-        joinedAt: projectMember.joinedAt
       })
       .from(projectMember)
       .innerJoin(user, eq(projectMember.userId, user.id))
       .where(eq(projectMember.projectId, projectId))
       .orderBy(projectMember.joinedAt);
-      
+
     return NextResponse.json(members);
+
   } catch (error) {
     console.error("Error fetching project members:", error);
     return NextResponse.json({ error: "Failed to fetch project members" }, { status: 500 });
   }
 }
 
-// POST /api/projects/[id]/members - Add a new member to a project by email
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+// POST /api/projects/[id]/members - Add a new member to a project
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { email, role = 'member' } = await req.json();
     const currentUser = await getUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { email, role = 'member' } = await req.json();
+    const { id: projectId } = await params;
+
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const projectId = (await Promise.resolve(params)).id;
-
-    // Only project admins can add new members
-    if (!await isProjectAdmin(projectId, currentUser.id)) {
-      return NextResponse.json({ error: "Only project admins can add members" }, { status: 403 });
+    if (role !== 'admin' && role !== 'member') {
+      return NextResponse.json({ error: "Invalid role. Must be 'admin' or 'member'" }, { status: 400 });
     }
 
-    // Fetch project details for notification
-    const [projectDetails] = await db
-      .select({
-        name: project.name
-      })
-      .from(project)
-      .where(eq(project.id, projectId));
+    // Check if the current user is an admin of the project
+    const [currentMember] = await db
+      .select()
+      .from(projectMember)
+      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id), eq(projectMember.role, 'admin')));
 
-    if (!projectDetails) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (!currentMember) {
+      return NextResponse.json({ error: "Forbidden: Only project admins can add members" }, { status: 403 });
     }
 
-    // Check if user exists
-    const [existingUser] = await db
+    // Find the user to add
+    const [userToAdd] = await db
       .select()
       .from(user)
       .where(eq(user.email, email));
 
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!userToAdd) {
+      return NextResponse.json({ error: "User not found with this email" }, { status: 404 });
     }
 
     // Check if user is already a member
     const [existingMember] = await db
       .select()
       .from(projectMember)
-      .where(
-        and(
-          eq(projectMember.projectId, projectId),
-          eq(projectMember.userId, existingUser.id)
-        )
-      );
+      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userToAdd.id)));
 
     if (existingMember) {
       return NextResponse.json({ error: "User is already a member of this project" }, { status: 400 });
     }
 
-    // Add member
+    // Add the user as a member
     const [newMember] = await db
       .insert(projectMember)
       .values({
         projectId,
-        userId: existingUser.id,
-        role: role as 'admin' | 'member'
+        userId: userToAdd.id,
+        role,
       })
       .returning();
 
-    // Create notification for the added user
-    try {
-      await createNotification({
-        userId: existingUser.id,
-        message: `You have been added to the project: ${projectDetails.name}`,
-        type: "project_invite",
-        projectId
-      });
-    } catch (notificationError) {
-      console.error("Failed to create notification, but member was added:", notificationError);
-      // Don't block the member addition if notification fails
-    }
+    // Return the new member with user details
+    const memberWithDetails = await db
+      .select({
+        id: projectMember.id,
+        userId: projectMember.userId,
+        projectId: projectMember.projectId,
+        role: projectMember.role,
+        joinedAt: projectMember.joinedAt,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+      })
+      .from(projectMember)
+      .innerJoin(user, eq(projectMember.userId, user.id))
+      .where(eq(projectMember.id, newMember.id));
 
-    return NextResponse.json(newMember, { status: 201 });
+    return NextResponse.json(memberWithDetails[0], { status: 201 });
+
   } catch (error) {
     console.error("Error adding project member:", error);
-    return NextResponse.json({ error: "Failed to add member" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to add project member" }, { status: 500 });
   }
 } 

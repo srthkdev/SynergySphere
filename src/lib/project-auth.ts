@@ -3,66 +3,56 @@ import { project, projectMember } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { AuthenticatedUser } from "./auth-middleware";
 
+// Check if user can access a project (is a member)
 export async function canAccessProject(userId: string, projectId: string): Promise<boolean> {
   try {
-    const [membership] = await db
+    const [member] = await db
       .select()
       .from(projectMember)
-      .where(
-        and(
-          eq(projectMember.userId, userId),
-          eq(projectMember.projectId, projectId)
-        )
-      )
-      .limit(1);
-
-    return !!membership;
+      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId)));
+    return !!member;
   } catch (error) {
     console.error("Error checking project access:", error);
     return false;
   }
 }
 
+// Check if user can modify a project (is an admin)
 export async function canModifyProject(userId: string, projectId: string): Promise<boolean> {
   try {
-    const [membership] = await db
+    const [member] = await db
       .select()
       .from(projectMember)
-      .where(
-        and(
-          eq(projectMember.userId, userId),
-          eq(projectMember.projectId, projectId)
-        )
-      )
-      .limit(1);
-
-    // Only owners and admins can modify projects
-    return membership && (membership.role === 'owner' || membership.role === 'admin');
+      .where(and(
+        eq(projectMember.projectId, projectId), 
+        eq(projectMember.userId, userId),
+        eq(projectMember.role, 'admin')
+      ));
+    return !!member;
   } catch (error) {
     console.error("Error checking project modification rights:", error);
     return false;
   }
 }
 
+// Get all projects a user has access to
 export async function getUserProjects(userId: string) {
   try {
-    const projects = await db
+    const userProjects = await db
       .select({
         id: project.id,
         name: project.name,
         description: project.description,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
-        createdById: project.createdById,
         role: projectMember.role,
-        joinedAt: projectMember.joinedAt,
       })
-      .from(project)
-      .innerJoin(projectMember, eq(project.id, projectMember.projectId))
+      .from(projectMember)
+      .innerJoin(project, eq(projectMember.projectId, project.id))
       .where(eq(projectMember.userId, userId))
       .orderBy(project.createdAt);
 
-    return projects;
+    return userProjects;
   } catch (error) {
     console.error("Error fetching user projects:", error);
     return [];
