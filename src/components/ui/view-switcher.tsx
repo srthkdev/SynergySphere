@@ -1,10 +1,10 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, List, Kanban, Table } from "lucide-react";
+import { LayoutGrid, List, Kanban } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ViewMode = 'list' | 'kanban' | 'gallery' | 'table';
+export type ViewMode = 'list' | 'kanban' | 'gallery';
 
 interface ViewSwitcherProps {
   currentView: ViewMode;
@@ -29,17 +29,12 @@ const viewConfig = {
     label: 'Gallery',
     description: 'Card grid layout'
   },
-  table: {
-    icon: Table,
-    label: 'Table',
-    description: 'Detailed table format'
-  }
 };
 
 export function ViewSwitcher({ 
   currentView, 
   onViewChange, 
-  availableViews = ['list', 'kanban', 'gallery', 'table'],
+  availableViews = ['list', 'kanban', 'gallery'],
   className 
 }: ViewSwitcherProps) {
   return (
