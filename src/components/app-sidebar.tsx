@@ -22,115 +22,98 @@ import { useState, useEffect } from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Static data for teams and navigation
-const staticData = {
-  teams: [
-    {
-      name: "SynergySphere",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
-    {
-      title: "My Tasks",
-      url: "/my-tasks",
-      icon: ListTodo,
-    },
-    {
-      title: "Inbox",
-      url: "/inbox",
-      icon: Inbox,
-    },
-    {
-      title: "Budgets", 
-      url: "/budgets",
-      icon: Wallet,
-    },
-    {
-      title: "Projects",
-      url: "/projects",
-      icon: Frame,
-      items: [
-        {
-          title: "View All",
-          url: "/projects",
-        },
-        {
-          title: "Create New",
-          url: "/projects/new",
-        },
-        {
-          title: "Templates",
-          url: "/projects/templates",
-        },
-      ],
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: PieChart,
-      items: [
-        {
-          title: "Reports",
-          url: "/analytics/reports",
-        },
-        {
-          title: "Insights",
-          url: "/analytics/insights",
-        },
-        {
-          title: "Metrics",
-          url: "/analytics/metrics",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings2,
-      items: [
-        {
-          title: "Profile",
-          url: "/settings/profile",
-        },
-        {
-          title: "Team",
-          url: "/settings/team",
-        },
-        {
-          title: "Preferences",
-          url: "/settings/preferences",
-        },
-      ],
-    },
-  ],
-}
+// Navigation data
+const navMain = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+    isActive: true,
+  },
+  {
+    title: "My Tasks",
+    url: "/my-tasks",
+    icon: ListTodo,
+  },
+  {
+    title: "Inbox",
+    url: "/inbox",
+    icon: Inbox,
+  },
+  {
+    title: "Budgets", 
+    url: "/budgets",
+    icon: Wallet,
+  },
+  {
+    title: "Projects",
+    url: "/projects",
+    icon: Frame,
+    items: [
+      {
+        title: "View All",
+        url: "/projects",
+      },
+      {
+        title: "Create New",
+        url: "/projects/new",
+      },
+      {
+        title: "Templates",
+        url: "/projects/templates",
+      },
+    ],
+  },
+  {
+    title: "Analytics",
+    url: "/analytics",
+    icon: PieChart,
+    items: [
+      {
+        title: "Reports",
+        url: "/analytics/reports",
+      },
+      {
+        title: "Insights",
+        url: "/analytics/insights",
+      },
+      {
+        title: "Metrics",
+        url: "/analytics/metrics",
+      },
+    ],
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings2,
+    items: [
+      {
+        title: "Profile",
+        url: "/settings/profile",
+      },
+      {
+        title: "Team",
+        url: "/settings/team",
+      },
+      {
+        title: "Preferences",
+        url: "/settings/preferences",
+      },
+    ],
+  },
+]
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user?: {
@@ -149,6 +132,25 @@ interface Project {
   createdAt: string;
   updatedAt: string;
   role: string; // user's role in the project
+}
+
+// Simple App Header Component
+function AppHeader() {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <GalleryVerticalEnd className="size-4" />
+          </div>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold">SynergySphere</span>
+            <span className="truncate text-xs">Project Management</span>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  )
 }
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
@@ -193,10 +195,10 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={staticData.teams} />
+        <AppHeader />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={staticData.navMain} />
+        <NavMain items={navMain} />
         {!loading && <NavProjects projects={projects} />}
       </SidebarContent>
       <SidebarFooter>
