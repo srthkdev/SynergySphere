@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { project, projectMember } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { getUserProjects, canModifyProject } from "@/lib/project-auth";
 import { validateRequestBody, createProjectSchema, updateProjectSchema } from "@/lib/validation";
 

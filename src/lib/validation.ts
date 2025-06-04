@@ -16,7 +16,7 @@ export const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
   description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
   projectId: z.string().uuid("Invalid project ID"),
-  assigneeId: z.string().uuid("Invalid assignee ID").optional(),
+  assigneeId: z.string().nullable().optional(), // Allow any string format for user IDs (Auth.js uses text IDs, not UUIDs)
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
   dueDate: z.string().datetime().optional(),
 });
@@ -26,7 +26,7 @@ export const updateTaskSchema = z.object({
   description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
   status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  assigneeId: z.string().uuid("Invalid assignee ID").optional(),
+  assigneeId: z.string().nullable().optional(), // Allow any string format for user IDs (Auth.js uses text IDs, not UUIDs)
   dueDate: z.string().datetime().optional(),
 });
 

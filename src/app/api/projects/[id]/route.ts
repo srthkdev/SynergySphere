@@ -3,7 +3,7 @@ import { project, projectMember } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getUserProjects, canModifyProject } from "@/lib/project-auth";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 
 // GET /api/projects/:id - Get project by ID
 export const GET = requireAuth(async (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { comment, user } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 
 // PATCH /api/comments/[commentId] - Update a comment
 export async function PATCH(

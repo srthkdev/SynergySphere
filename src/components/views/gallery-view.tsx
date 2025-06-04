@@ -301,7 +301,7 @@ function ProjectCard({ project, onUpdate, onClick }: {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Badge className={getStatusColor(project.status)}>
-              {project.status.replace('-', ' ')}
+              {project.status ? project.status.replace('-', ' ') : 'N/A'}
             </Badge>
             <span className="text-sm text-muted-foreground">{project.progress}%</span>
           </div>
@@ -329,7 +329,7 @@ function ProjectCard({ project, onUpdate, onClick }: {
         </div>
 
         {/* Tags */}
-        {project.tags.length > 0 && (
+        {project.tags && Array.isArray(project.tags) && project.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {project.tags.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="outline" className="text-xs">

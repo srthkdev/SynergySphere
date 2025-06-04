@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
 const protectedRoutes = ["/dashboard"];
-const authRoutes = ["/sign-in", "/sign-up"];
+const authRoutes = ["/login", "/sign-up", "/sign-in", "/forgot-password", "/reset-password"];
 
 export async function middleware(request: NextRequest) {
     const session = await auth.api.getSession({
@@ -19,7 +19,7 @@ export async function middleware(request: NextRequest) {
 
     // If user is not authenticated and trying to access a protected route
     if (!session && protectedRoutes.some(route => pathname.startsWith(route))) {
-        return NextResponse.redirect(new URL("/sign-in", request.url));
+        return NextResponse.redirect(new URL("/login", request.url));
     }
 
     return NextResponse.next();

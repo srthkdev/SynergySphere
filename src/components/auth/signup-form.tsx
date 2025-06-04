@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
+import { Icon } from "@/components/icons"
+import { LogoIcon } from "@/components/logo"
 import Link from "next/link"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -26,7 +27,7 @@ const signupSchema = z.object({
 
 type SignupFormData = z.infer<typeof signupSchema>
 
-export default function SignupForm() {
+export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
@@ -112,9 +113,7 @@ export default function SignupForm() {
         <div className="bg-card -m-px rounded-[calc(var(--radius)+.125rem)] border p-8 pb-6">
           <div className="text-center">
             <Link href="/" aria-label="go home" className="mx-auto block w-fit">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Icons.Logo className="h-6 w-6" />
-              </div>
+              <LogoIcon />
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">Create your account</h1>
             <p className="text-sm text-muted-foreground">Get started with SynergySphere</p>
@@ -215,7 +214,7 @@ export default function SignupForm() {
             {googleLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Icons.Google className="h-4 w-4" />
+              <Icon.google className="h-4 w-4" />
             )}
             Google
           </Button>
@@ -225,11 +224,11 @@ export default function SignupForm() {
           <p className="text-accent-foreground text-center text-sm">
             Already have an account?{" "}
             <Button asChild variant="link" className="px-2">
-              <Link href="/sign-in">Sign in</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
           </p>
         </div>
       </form>
     </section>
   )
-} 
+}

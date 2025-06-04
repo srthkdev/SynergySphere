@@ -25,7 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { authClient } from "@/lib/auth-client"
+import { signOut } from "@/lib/auth/auth-client"
 
 export function NavUser({
   user,
@@ -47,10 +47,10 @@ export function NavUser({
     .slice(0, 2)
 
   const handleSignOut = async () => {
-    await authClient.signOut({
+    await signOut({
       fetchOptions: {
         onSuccess: () => {
-          window.location.href = "/sign-in"
+          window.location.href = "/login"
         },
       },
     })

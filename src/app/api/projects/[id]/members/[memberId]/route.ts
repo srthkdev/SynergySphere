@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projectMember, user } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 
 // Helper to check if current user is an admin of the project
 async function isProjectAdmin(projectId: string, userId: string): Promise<boolean> {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { task, project, user } from "@/lib/db/schema";
 import { and, eq, isNull, or, desc } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 
 // GET /api/tasks/my-tasks - Get all tasks assigned to the current user across all projects
 export async function GET(req: NextRequest) {

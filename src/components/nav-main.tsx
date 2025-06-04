@@ -20,6 +20,18 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
+const iconColors = [
+  'text-sky-500',
+  'text-emerald-500',
+  'text-amber-500',
+  'text-violet-500',
+  'text-rose-500',
+  'text-teal-500',
+  'text-cyan-500',
+  'text-lime-500',
+  'text-fuchsia-500',
+];
+
 export function NavMain({
   items,
 }: {
@@ -40,8 +52,9 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => {
+        {items.map((item, index) => {
           const isActive = pathname === item.url || pathname.startsWith(item.url + "/")
+          const colorClass = iconColors[index % iconColors.length];
           
           // If the item has no sub-items, render as a direct link
           if (!item.items || item.items.length === 0) {
@@ -49,7 +62,7 @@ export function NavMain({
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton tooltip={item.title} isActive={isActive} asChild>
                   <Link href={item.url}>
-                    {item.icon && <item.icon />}
+                    {item.icon && <item.icon className={colorClass} />}
                     <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -68,7 +81,7 @@ export function NavMain({
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
                   <SidebarMenuButton tooltip={item.title} isActive={isActive}>
-                    {item.icon && <item.icon />}
+                    {item.icon && <item.icon className={colorClass} />}
                     <span>{item.title}</span>
                     <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>

@@ -1,7 +1,7 @@
-import { db } from "@/lib/db";
+import db from "@/lib/db";
 import { project, projectMember } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { AuthenticatedUser } from "./auth-middleware";
+
 
 // Check if user can access a project (is a member)
 export async function canAccessProject(userId: string, projectId: string): Promise<boolean> {

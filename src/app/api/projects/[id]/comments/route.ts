@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { comment } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { canAccessProject } from "@/lib/project-auth";
 import { v4 as uuidv4 } from "uuid";
 

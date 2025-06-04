@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
+import { Icon } from "@/components/icons"
+import { LogoIcon } from "@/components/logo"
 import Link from "next/link"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -106,9 +107,7 @@ export default function LoginForm() {
         <div className="bg-card -m-px rounded-[calc(var(--radius)+.125rem)] border p-8 pb-6">
           <div className="text-center">
             <Link href="/" aria-label="go home" className="mx-auto block w-fit">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Icons.Logo className="h-6 w-6" />
-              </div>
+              <LogoIcon />
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">Sign in to SynergySphere</h1>
             <p className="text-sm text-muted-foreground">Welcome back! Sign in to continue</p>
@@ -182,7 +181,7 @@ export default function LoginForm() {
             {googleLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Icons.Google className="h-4 w-4" />
+              <Icon.google className="h-4 w-4" />
             )}
             Google
           </Button>
@@ -199,4 +198,4 @@ export default function LoginForm() {
       </form>
     </section>
   )
-} 
+}
