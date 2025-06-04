@@ -55,7 +55,8 @@ export interface Task {
 
 // Add ProjectMember type
 export interface ProjectMember {
-  id: string; // This is the User ID of the member
+  id: string; // This is the member ID
+  userId: string; // This is the User ID of the member
   name: string;
   email: string;
   image?: string | null;

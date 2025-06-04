@@ -1,7 +1,7 @@
-import { db } from "@/lib/db";
+import db from "@/lib/db";
 import { project, projectMember } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { AuthenticatedUser } from "./auth-middleware";
+
 
 // Check if user can access a project (is a member)
 export async function canAccessProject(userId: string, projectId: string): Promise<boolean> {
@@ -17,7 +17,7 @@ export async function canAccessProject(userId: string, projectId: string): Promi
   }
 }
 
-// Check if user can modify a project (is an admin)
+// Check if user can modify a project (is an owner or admin)
 export async function canModifyProject(userId: string, projectId: string): Promise<boolean> {
   try {
     const [member] = await db
@@ -25,10 +25,11 @@ export async function canModifyProject(userId: string, projectId: string): Promi
       .from(projectMember)
       .where(and(
         eq(projectMember.projectId, projectId), 
-        eq(projectMember.userId, userId),
-        eq(projectMember.role, 'admin')
+        eq(projectMember.userId, userId)
       ));
-    return !!member;
+    
+    // Allow modification if user is owner or admin
+    return !!member && (member.role === 'owner' || member.role === 'admin');
   } catch (error) {
     console.error("Error checking project modification rights:", error);
     return false;
@@ -43,6 +44,8 @@ export async function getUserProjects(userId: string) {
         id: project.id,
         name: project.name,
         description: project.description,
+        status: project.status,
+        priority: project.priority,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         role: projectMember.role,

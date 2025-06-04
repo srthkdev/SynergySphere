@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { task, projectMember, taskStatusEnum } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 
 // Helper function to check project membership
 async function verifyProjectMembership(projectId: string, userId: string) {

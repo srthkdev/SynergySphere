@@ -60,15 +60,9 @@ interface Project {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  progress: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-  spent: number;
-  teamSize: number;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
+  role: string; // user's role in the project
 }
 
 interface GalleryViewProps {
@@ -246,15 +240,9 @@ function ProjectCard({ project, onUpdate, onClick }: {
   onUpdate?: (updates: Partial<Project>) => void;
   onClick?: (project: Project) => void;
 }) {
-  const budgetUsage = project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
-  const isOverBudget = budgetUsage > 100;
-
   return (
     <Card 
-      className={cn(
-        "hover:shadow-lg transition-all duration-200 cursor-pointer group",
-        isOverBudget && "border-red-200 bg-red-50"
-      )}
+      className="hover:shadow-lg transition-all duration-200 cursor-pointer group"
       onClick={() => onClick?.(project)}
     >
       <CardHeader className="pb-3">
@@ -297,74 +285,32 @@ function ProjectCard({ project, onUpdate, onClick }: {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* Status and Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Badge className={getStatusColor(project.status)}>
-              {project.status.replace('-', ' ')}
-            </Badge>
-            <span className="text-sm text-muted-foreground">{project.progress}%</span>
-          </div>
-          <Progress value={project.progress} className="h-2" />
+        {/* Status */}
+        <div className="flex items-center justify-between">
+          <Badge className={getStatusColor(project.status)}>
+            {project.status ? project.status.replace('-', ' ') : 'N/A'}
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            {project.role}
+          </Badge>
         </div>
 
-        {/* Budget */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-1">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Budget</span>
-            </div>
-            <span className={cn(
-              "font-medium",
-              isOverBudget ? "text-red-600" : "text-muted-foreground"
-            )}>
-              {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
-            </span>
-          </div>
-          <Progress 
-            value={Math.min(budgetUsage, 100)} 
-            className={cn("h-2", isOverBudget && "bg-red-100")}
-          />
-        </div>
-
-        {/* Tags */}
-        {project.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {project.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {project.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{project.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        {/* Team and Timeline */}
-        <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center space-x-1">
-            <Users className="h-4 w-4" />
-            <span>{project.teamSize} members</span>
-          </div>
-          <div className="flex items-center space-x-1">
+        {/* Project Info */}
+        <div className="text-sm text-muted-foreground">
+          <div className="flex items-center space-x-1 mb-2">
             <Calendar className="h-4 w-4" />
-            <span>
-              {project.endDate 
-                ? new Date(project.endDate).toLocaleDateString()
-                : 'No deadline'
-              }
-            </span>
+            <span>Created {new Date(project.createdAt).toLocaleDateString()}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Clock className="h-4 w-4" />
+            <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="text-sm text-muted-foreground">
-            Started {new Date(project.startDate).toLocaleDateString()}
+            Priority: {project.priority}
           </div>
           <Link href={`/projects/${project.id}`}>
             <Button variant="outline" size="sm" className="opacity-0 group-hover:opacity-100">

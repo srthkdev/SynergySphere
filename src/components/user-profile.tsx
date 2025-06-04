@@ -14,7 +14,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { useSession, signOut } from "@/lib/auth-client"
+import { useSession, signOut } from "@/lib/auth/auth-client"
 import { useRouter } from "next/navigation";
 import Link from "next/link"
 import { siteConfig } from "@/config/site.config"

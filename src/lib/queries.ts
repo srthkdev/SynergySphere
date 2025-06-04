@@ -1,12 +1,21 @@
 import { Project, Task, TaskStatus, ProjectMember, Comment } from "@/types";
 
 export const fetchProjects = async (): Promise<Project[]> => {
-  const response = await fetch('/api/projects');
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch projects');
+  try {
+    const response = await fetch('/api/projects', { credentials: 'include' });
+    console.log('fetchProjects response status:', response.status);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
+      console.error('fetchProjects errorData:', errorData);
+      throw new Error(errorData.error || 'Failed to fetch projects');
+    }
+    const projects = await response.json();
+    console.log('fetchProjects data:', projects);
+    return projects;
+  } catch (error) {
+    console.error('Exception in fetchProjects:', error);
+    throw error;
   }
-  return response.json();
 };
 
 export const fetchProjectById = async (projectId: string): Promise<Project> => {

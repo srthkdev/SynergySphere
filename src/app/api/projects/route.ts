@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { project, projectMember } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { getUserProjects, canModifyProject } from "@/lib/project-auth";
 import { validateRequestBody, createProjectSchema, updateProjectSchema } from "@/lib/validation";
 
@@ -28,11 +28,17 @@ export const POST = requireAuth(async (request: NextRequest, user: Authenticated
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const { name, description } = validation.data;
+    const { name, description, status, priority, tags, managerId, deadline, imageUrl } = validation.data;
 
     const [newProject] = await db.insert(project).values({
       name,
       description,
+      status: status || 'planning',
+      priority: priority || 'medium',
+      tags: tags || null,
+      managerId: managerId || null,
+      deadline: deadline ? new Date(deadline) : null,
+      imageUrl: imageUrl || null,
       createdById: user.id,
     }).returning();
 
@@ -72,12 +78,20 @@ export const PUT = requireAuth(async (request: NextRequest, user: AuthenticatedU
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
     
+    // Transform the data for database insertion
+    const updateData: any = {
+      ...validation.data,
+      updatedAt: new Date(),
+    };
+
+    // Convert deadline string to Date if provided
+    if (validation.data.deadline !== undefined) {
+      updateData.deadline = validation.data.deadline ? new Date(validation.data.deadline) : null;
+    }
+    
     const [updatedProject] = await db
       .update(project)
-      .set({
-        ...validation.data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(project.id, id))
       .returning();
 

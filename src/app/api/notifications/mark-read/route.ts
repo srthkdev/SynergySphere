@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notification } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 
 // POST /api/notifications/mark-read - Mark notifications as read
 export async function POST(req: NextRequest) {

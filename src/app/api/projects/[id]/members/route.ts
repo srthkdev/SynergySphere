@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projectMember, user, project } from "@/lib/db/schema";
 import { and, eq, sql, inArray } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { getUser } from "@/lib/auth/auth-utils";
 import { v4 as uuidv4 } from "uuid";
 import { createNotification } from "@/lib/notifications";
 

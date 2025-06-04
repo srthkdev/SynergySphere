@@ -60,15 +60,9 @@ interface Project {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  progress: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-  spent: number;
-  teamSize: number;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
+  role: string; // user's role in the project
 }
 
 interface ListViewProps {
@@ -219,15 +213,9 @@ function ProjectListItem({ project, onUpdate, onClick }: {
   onUpdate?: (updates: Partial<Project>) => void;
   onClick?: (project: Project) => void;
 }) {
-  const budgetUsage = project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
-  const isOverBudget = budgetUsage > 100;
-
   return (
     <div 
-      className={cn(
-        "flex items-center justify-between p-4 border-b hover:bg-muted/50 transition-colors cursor-pointer group",
-        isOverBudget && "bg-red-50 border-red-200"
-      )}
+      className="flex items-center justify-between p-4 border-b hover:bg-muted/50 transition-colors cursor-pointer group"
       onClick={() => onClick?.(project)}
     >
       <div className="flex items-center space-x-4 flex-1 min-w-0">
@@ -243,36 +231,29 @@ function ProjectListItem({ project, onUpdate, onClick }: {
             <Badge className={cn("text-xs", getStatusColor(project.status))}>
               {project.status.replace('-', ' ')}
             </Badge>
+            <Badge variant="outline" className="text-xs">
+              {project.role}
+            </Badge>
           </div>
           
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
             <div className="flex items-center space-x-1">
-              <Users className="h-3 w-3" />
-              <span>{project.teamSize} members</span>
+              <Calendar className="h-3 w-3" />
+              <span>Created {new Date(project.createdAt).toLocaleDateString()}</span>
             </div>
             
             <div className="flex items-center space-x-1">
-              <DollarSign className="h-3 w-3" />
-              <span className={cn(isOverBudget && "text-red-600")}>
-                {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
-              </span>
+              <Clock className="h-3 w-3" />
+              <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
             </div>
-            
-            {project.endDate && (
-              <div className="flex items-center space-x-1">
-                <Calendar className="h-3 w-3" />
-                <span>{new Date(project.endDate).toLocaleDateString()}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
       
-      {/* Progress and actions */}
+      {/* Actions */}
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2 min-w-[100px]">
-          <Progress value={project.progress} className="h-2 w-16" />
-          <span className="text-xs text-muted-foreground w-8">{project.progress}%</span>
+        <div className="text-xs text-muted-foreground">
+          Priority: {project.priority}
         </div>
         
         <DropdownMenu>

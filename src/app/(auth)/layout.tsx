@@ -1,15 +1,21 @@
-// import { Goku } from "@/app/(landing)/page"; // Goku import removed
+import { Icon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ReactNode } from "react";
 
-export default function AuthLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function Layout({
+    children
+}: Readonly<{
+    children : React.ReactNode;
+}>) {
     return (
-        <div className="flex items-center justify-center h-screen">
-            <div className="w-full md:w-1/2 lg:w-1/3 h-full flex items-center justify-center px-2 md:px-0">
-                {children}
-            </div>
+        <div>
+            <Button className="fixed left-4 top-4" variant="outline" asChild>
+                <Link href="/">
+                    <Icon.ArrowLeft  className="h-2 w-2"/>
+                </Link>
+            </Button>
+            {children}
         </div>
-    );
+    )
 }

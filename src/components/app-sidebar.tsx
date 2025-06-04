@@ -146,15 +146,9 @@ interface Project {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  progress: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-  spent: number;
-  teamSize: number;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
+  role: string; // user's role in the project
 }
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {

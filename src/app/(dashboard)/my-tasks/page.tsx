@@ -54,6 +54,7 @@ import { KanbanView } from '@/components/views/kanban-view';
 import { GalleryView } from '@/components/views/gallery-view';
 import { ListView } from '@/components/views/list-view';
 import { TaskDetailModal } from "@/components/modals/task-detail-modal"
+import { CreateEditTaskDialog } from "@/components/projects/task/CreateEditTaskDialog"
 
 interface Task {
   id: string;
@@ -80,15 +81,9 @@ interface Project {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  progress: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-  spent: number;
-  teamSize: number;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
+  role: string; // user's role in the project
 }
 
 const taskStats = [
@@ -106,7 +101,7 @@ const taskStats = [
   },
   {
     title: "Completed",
-    value: "0", 
+    value: "0",
     icon: Target,
     description: "Successfully finished"
   },
@@ -514,101 +509,30 @@ export default function MyTasksPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Create New Task Modal */}
-      {isCreateTaskModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg bg-card">
-            <CardHeader>
-              <CardTitle>Create New Task</CardTitle>
-              <CardDescription>Fill in the details below to create a new task.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const tags = formData.get('tags') as string;
-                const taskData = {
-                  title: formData.get('title') as string,
-                  description: formData.get('description') as string,
-                  status: (formData.get('status') as Task['status']) || 'todo',
-                  priority: (formData.get('priority') as Task['priority']) || 'medium',
-                  dueDate: formData.get('dueDate') as string || undefined,
-                  assignedBy: 'Current User', // Placeholder
-                  // assignedByAvatar: '', // Will be set by backend or a user profile service
-                  tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-                  progress: 0,
-                  estimatedHours: parseInt(formData.get('estimatedHours') as string) || 0,
-                  loggedHours: 0,
-                  project: formData.get('project') as string || 'Default Project',
-                  projectId: formData.get('projectId') as string || '1', // Placeholder
-                };
-                handleDetailedTaskCreate(taskData);
-              }}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium mb-1">Title</label>
-                    <Input id="title" name="title" placeholder="Enter task title" required />
-                  </div>
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
-                    <textarea id="description" name="description" rows={3} className="w-full p-2 border rounded-md" placeholder="Enter task description"></textarea>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="status" className="block text-sm font-medium mb-1">Status</label>
-                      <Select name="status" defaultValue="todo">
-                        <SelectTrigger id="status"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">To Do</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="in-review">In Review</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label htmlFor="priority" className="block text-sm font-medium mb-1">Priority</label>
-                      <Select name="priority" defaultValue="medium">
-                        <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="dueDate" className="block text-sm font-medium mb-1">Due Date</label>
-                      <Input id="dueDate" name="dueDate" type="date" />
-                    </div>
-                    <div>
-                      <label htmlFor="estimatedHours" className="block text-sm font-medium mb-1">Estimated Hours</label>
-                      <Input id="estimatedHours" name="estimatedHours" type="number" placeholder="0" min="0"/>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="project" className="block text-sm font-medium mb-1">Project</label>
-                    <Input id="project" name="project" placeholder="Enter project name or ID" />
-                  </div>
-                   <div>
-                    <label htmlFor="tags" className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
-                    <Input id="tags" name="tags" placeholder="e.g., design, frontend, bug" />
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-2 mt-6">
-                  <Button type="button" variant="outline" onClick={() => setIsCreateTaskModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create Task</Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Create New Task Dialog */}
+      <CreateEditTaskDialog
+        open={isCreateTaskModalOpen}
+        onOpenChange={(open) => {
+          setIsCreateTaskModalOpen(open);
+          if (!open) {
+            // Refresh tasks when dialog closes
+            const fetchTasks = async () => {
+              try {
+                const response = await fetch('/api/tasks');
+                if (response.ok) {
+                  const data = await response.json();
+                  setTasks(data);
+                }
+              } catch (error) {
+                console.error('Failed to refresh tasks:', error);
+              }
+            };
+            fetchTasks();
+          }
+        }}
+        projectId="" // Empty string - the dialog will show project selector
+        taskToEdit={null}
+      />
 
       {/* Task Detail Modal */}
       {selectedTask && (

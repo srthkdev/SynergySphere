@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Bell, Calendar, CheckCircle, Clock, ArrowRight, BarChart3, Target, FileText, TrendingUp, TrendingDown, Users, Folder, AlertTriangle } from "lucide-react";
+import { Plus, Bell, CheckCircle, Clock, ArrowRight, BarChart3, Target, FileText, TrendingUp, TrendingDown, Folder, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 
 interface Task {
 	id: string;
@@ -27,13 +26,9 @@ interface Project {
 	description: string;
 	status: 'planning' | 'active' | 'on-hold' | 'completed';
 	priority: 'low' | 'medium' | 'high';
-	progress: number;
-	startDate: string;
-	endDate?: string;
-	budget: number;
-	spent: number;
-	teamSize: number;
-	tags: string[];
+	createdAt: string;
+	updatedAt: string;
+	role: string; // user's role in the project
 }
 
 interface DashboardStats {
@@ -44,8 +39,6 @@ interface DashboardStats {
 	completedTasks: number;
 	inProgressTasks: number;
 	overdueTasks: number;
-	totalBudget: number;
-	spentBudget: number;
 }
 
 function getPriorityColor(priority: string) {
@@ -90,8 +83,6 @@ export default function DashboardPage() {
 		completedTasks: 0,
 		inProgressTasks: 0,
 		overdueTasks: 0,
-		totalBudget: 0,
-		spentBudget: 0,
 	});
 
 	// Fetch data from APIs
@@ -127,8 +118,6 @@ export default function DashboardPage() {
 					if (!t.dueDate) return false;
 					return new Date(t.dueDate) < new Date() && t.status !== 'completed';
 				}).length;
-				const totalBudget = projectsData.reduce((sum: number, p: Project) => sum + p.budget, 0);
-				const spentBudget = projectsData.reduce((sum: number, p: Project) => sum + p.spent, 0);
 
 				setStats({
 					totalProjects,
@@ -138,8 +127,6 @@ export default function DashboardPage() {
 					completedTasks,
 					inProgressTasks,
 					overdueTasks,
-					totalBudget,
-					spentBudget,
 				});
 
 			} catch (err) {
@@ -179,14 +166,6 @@ export default function DashboardPage() {
 			trend: "up",
 			icon: CheckCircle,
 			description: "Task completion rate"
-		},
-		{
-			title: "Budget Utilized",
-			value: stats.totalBudget > 0 ? `${Math.round((stats.spentBudget / stats.totalBudget) * 100)}%` : "0%",
-			change: formatCurrency(stats.spentBudget),
-			trend: stats.spentBudget > stats.totalBudget * 0.8 ? "down" : "up",
-			icon: BarChart3,
-			description: "Of allocated budget"
 		},
 		{
 			title: "Overdue Tasks",
@@ -262,7 +241,7 @@ export default function DashboardPage() {
 			</div>
 
 			{/* KPI Cards */}
-			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<div className="grid gap-4 md:grid-cols-3">
 				{kpiData.map((kpi) => (
 					<Card key={kpi.title}>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -322,28 +301,20 @@ export default function DashboardPage() {
 										<div className="space-y-1">
 											<h3 className="font-medium">{project.name}</h3>
 											<div className="flex items-center space-x-2 text-sm text-muted-foreground">
-												<Calendar className="h-3 w-3" />
-												<span>
-													{project.endDate 
-														? `Due ${new Date(project.endDate).toLocaleDateString()}`
-														: 'No due date'
-													}
-												</span>
-												<span>•</span>
-												<Users className="h-3 w-3" />
-												<span>{project.teamSize} members</span>
+												<span>{project.description || 'No description'}</span>
 											</div>
 										</div>
 										<Badge className={getStatusColor(project.status)}>
 											{project.status.replace('-', ' ')}
 										</Badge>
 									</div>
-									<div className="space-y-1">
-										<div className="flex items-center justify-between text-sm">
-											<span>Progress</span>
-											<span>{project.progress}%</span>
-										</div>
-										<Progress value={project.progress} />
+									<div className="flex items-center justify-between text-sm">
+										<Badge className={getPriorityColor(project.priority)} variant="outline">
+											{project.priority} priority
+										</Badge>
+										<span className="text-muted-foreground">
+											Created {new Date(project.createdAt).toLocaleDateString()}
+										</span>
 									</div>
 								</div>
 							))
@@ -430,45 +401,6 @@ export default function DashboardPage() {
 							<Button variant="outline" className="w-full justify-start">
 								<FileText className="mr-2 h-4 w-4" />
 								Settings
-							</Button>
-						</Link>
-					</CardContent>
-				</Card>
-
-				{/* Budget Overview */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Budget Overview</CardTitle>
-						<CardDescription>Financial summary</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="space-y-2">
-							<div className="flex items-center justify-between text-sm">
-								<span>Total Budget</span>
-								<span className="font-medium">{formatCurrency(stats.totalBudget)}</span>
-							</div>
-							<div className="flex items-center justify-between text-sm">
-								<span>Spent</span>
-								<span className="font-medium">{formatCurrency(stats.spentBudget)}</span>
-							</div>
-							<div className="flex items-center justify-between text-sm">
-								<span>Remaining</span>
-								<span className="font-medium">{formatCurrency(stats.totalBudget - stats.spentBudget)}</span>
-							</div>
-							{stats.totalBudget > 0 && (
-								<div className="space-y-1">
-									<div className="flex items-center justify-between text-sm">
-										<span>Utilization</span>
-										<span>{Math.round((stats.spentBudget / stats.totalBudget) * 100)}%</span>
-									</div>
-									<Progress value={(stats.spentBudget / stats.totalBudget) * 100} />
-								</div>
-							)}
-						</div>
-						<Link href="/budgets">
-							<Button variant="outline" size="sm" className="w-full">
-								<BarChart3 className="mr-2 h-4 w-4" />
-								View Budgets
 							</Button>
 						</Link>
 					</CardContent>

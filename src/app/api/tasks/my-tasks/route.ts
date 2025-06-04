@@ -1,30 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { task, project, user } from "@/lib/db/schema";
-import { and, eq, isNull, or, desc } from "drizzle-orm";
-import { getUser } from "@/lib/auth-utils";
+import { task, project, user, projectMember } from "@/lib/db/schema";
+import { and, eq, isNull, or, desc, inArray } from "drizzle-orm";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 
-// GET /api/tasks/my-tasks - Get all tasks assigned to the current user across all projects
-export async function GET(req: NextRequest) {
+// GET /api/tasks/my-tasks - Get all tasks assigned to the current user across all projects they have access to
+export const GET = requireAuth(async (req: NextRequest, user: AuthenticatedUser) => {
   try {
-    const currentUser = await getUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     // Check if we should include tasks created by the user
     const url = new URL(req.url);
     const includeCreated = url.searchParams.get("includeCreated") === "true";
+
+    // Get all project IDs the user has access to
+    const userProjectMembers = await db
+      .select({ projectId: projectMember.projectId })
+      .from(projectMember)
+      .where(eq(projectMember.userId, user.id));
+    
+    const projectIds = userProjectMembers.map(pm => pm.projectId);
+    
+    if (projectIds.length === 0) {
+      return NextResponse.json([]);
+    }
 
     // Base query conditions
     let conditions = [];
     
     // Always include tasks assigned to the user
-    conditions.push(eq(task.assigneeId, currentUser.id));
+    conditions.push(and(
+      eq(task.assigneeId, user.id),
+      inArray(task.projectId, projectIds)
+    ));
     
     // Optionally include tasks created by the user
     if (includeCreated) {
-      conditions.push(eq(task.createdById, currentUser.id));
+      conditions.push(and(
+        eq(task.createdById, user.id),
+        inArray(task.projectId, projectIds)
+      ));
     }
 
     // Get tasks based on the conditions
@@ -60,4 +73,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}); 

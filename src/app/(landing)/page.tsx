@@ -6,7 +6,7 @@ import { siteConfig } from "@/config/site.config";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Sparkle, Github, ArrowUpRight, ListChecks, MessageSquare, BarChart3, PackageSearch, AlertTriangle, Users2, Target, Rocket, ClipboardCheck, MessagesSquare } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 
 import { UserProfile } from "@/components/user-profile";
 import ThemeToggler from "@/components/theme/toggler";
@@ -33,7 +33,7 @@ export default function Home() {
                 </Button>
               ) : (
                 <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
-                  <Link href="/sign-in" className="flex items-center gap-2 group/nav">
+                  <Link href="/login" className="flex items-center gap-2 group/nav">
                     <span>Sign In</span>
                     <div className="relative z-10 size-4 overflow-hidden flex items-center justify-center">
                       <ArrowUpRight className="-z-10 absolute opacity-100 scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/nav:-translate-y-5 group-hover/nav:translate-x-5 group-hover/nav:opacity-0 group-hover/nav:scale-0 transition-all duration-200" />

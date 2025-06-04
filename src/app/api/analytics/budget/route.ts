@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/db";
 import { task, project, projectMember, budget, budgetEntry } from "@/lib/db/schema";
 import { eq, sum, count, sql } from "drizzle-orm";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 
 // Hourly rates for budget calculations
 const HOURLY_RATES = {

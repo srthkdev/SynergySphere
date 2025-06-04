@@ -65,15 +65,9 @@ interface Project {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  progress: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-  spent: number;
-  teamSize: number;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
+  role: string; // user's role in the project
 }
 
 interface Task {
@@ -159,7 +153,6 @@ export default function ProjectsPage() {
   const [currentView, setCurrentView] = useState<ViewMode>('gallery');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
 
   // Fetch projects from API
   useEffect(() => {
@@ -186,8 +179,11 @@ export default function ProjectsPage() {
   const activeProjects = projects.filter(project => project.status === 'active').length;
   const completedProjects = projects.filter(project => project.status === 'completed').length;
   const atRiskProjects = projects.filter(project => {
-    const budgetUsage = project.spent / project.budget;
-    return budgetUsage > 0.8 && project.status === 'active';
+    // For now, consider projects that have been active for a while as "at risk"
+    // This is a placeholder until we have proper budget/timeline tracking
+    const createdDate = new Date(project.createdAt);
+    const daysSinceCreated = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+    return project.status === 'active' && daysSinceCreated > 30;
   }).length;
 
   // Update project stats
@@ -199,54 +195,21 @@ export default function ProjectsPage() {
   // Filter projects based on search, tab, and priority
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTab = selectedTab === 'all' || project.status === selectedTab;
     const matchesPriority = selectedPriority === 'all' || project.priority === selectedPriority;
     
-    switch (selectedTab) {
-      case 'active':
-        return matchesSearch && matchesPriority && project.status === 'active';
-      case 'completed':
-        return matchesSearch && matchesPriority && project.status === 'completed';
-      case 'planning':
-        return matchesSearch && matchesPriority && project.status === 'planning';
-      default:
-        return matchesSearch && matchesPriority;
-    }
+    return matchesSearch && matchesTab && matchesPriority;
   });
 
-  // Handle project creation
-  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(projectData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create project');
-      }
-
-      const newProject = await response.json();
-      setProjects([...projects, newProject]);
-      setIsCreateProjectOpen(false);
-    } catch (err) {
-      console.error('Error creating project:', err);
-    }
-  };
-
-  // Handle project updates from views
   const handleProjectUpdate = async (projectId: string, updates: Partial<Project>) => {
     try {
-      const response = await fetch(`/api/projects/${projectId}`, {
+      const response = await fetch('/api/projects', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ id: projectId, ...updates }),
       });
 
       if (!response.ok) {
@@ -254,22 +217,19 @@ export default function ProjectsPage() {
       }
 
       const updatedProject = await response.json();
-      setProjects(projects.map(project => project.id === projectId ? updatedProject : project));
-    } catch (err) {
-      console.error('Error updating project:', err);
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updatedProject } : p));
+    } catch (error) {
+      console.error('Error updating project:', error);
     }
   };
 
-  // Handle project click
   const handleProjectClick = (item: Task | Project) => {
-    const project = item as Project;
     // Navigate to project detail page
-    window.location.href = `/projects/${project.id}`;
+    window.location.href = `/projects/${item.id}`;
   };
 
-  // Handle item update (for compatibility with views)
   const handleItemUpdate = (itemId: string, updates: any) => {
-    return handleProjectUpdate(itemId, updates);
+    handleProjectUpdate(itemId, updates);
   };
 
   if (loading) {
@@ -302,10 +262,12 @@ export default function ProjectsPage() {
             <Filter className="mr-2 h-4 w-4" />
             Filter
           </Button>
-          <Button onClick={() => setIsCreateProjectOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Project
-          </Button>
+          <Link href="/projects/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Project
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -391,10 +353,18 @@ export default function ProjectsPage() {
                 <h3 className="text-lg font-semibold mb-2">No projects found</h3>
                 <p className="text-sm text-muted-foreground text-center">
                   {projects.length === 0 
-                    ? "You don't have any projects yet."
+                    ? "You don't have any projects yet. "
                     : "No projects match your current filter criteria."
                   }
                 </p>
+                {projects.length === 0 && (
+                  <Link href="/projects/new">
+                    <Button className="mt-4">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Your First Project
+                    </Button>
+                  </Link>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -420,91 +390,6 @@ export default function ProjectsPage() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Create Project Modal */}
-      {isCreateProjectOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Create New Project</h2>
-              <Button variant="ghost" size="sm" onClick={() => setIsCreateProjectOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.target as HTMLFormElement);
-              const projectData = {
-                name: formData.get('name') as string,
-                description: formData.get('description') as string,
-                priority: (formData.get('priority') as string) as 'low' | 'medium' | 'high',
-                budget: parseFloat(formData.get('budget') as string) || 0,
-                startDate: formData.get('startDate') as string,
-                endDate: formData.get('endDate') as string,
-                status: 'planning' as const,
-                progress: 0,
-                spent: 0,
-                teamSize: 1,
-                tags: []
-              };
-              handleCreateProject(projectData);
-            }}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Project Name</label>
-                  <Input name="name" placeholder="Enter project name" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea 
-                    name="description" 
-                    className="w-full p-2 border rounded-md resize-none" 
-                    rows={3} 
-                    placeholder="Enter project description"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Priority</label>
-                    <Select name="priority" defaultValue="medium">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Budget</label>
-                    <Input name="budget" type="number" placeholder="0" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Start Date</label>
-                    <Input name="startDate" type="date" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">End Date</label>
-                    <Input name="endDate" type="date" />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 mt-6">
-                <Button type="button" variant="outline" onClick={() => setIsCreateProjectOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  Create Project
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
     </div>
   )
 } 

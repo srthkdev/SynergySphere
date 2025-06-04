@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/db";
 import { task, project, comment, projectMember } from "@/lib/db/schema";
 import { eq, count, sql } from "drizzle-orm";
-import { requireAuth, AuthenticatedUser } from "@/lib/auth-middleware";
+import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 
 // GET /api/analytics/overview - Get overview analytics
 export const GET = requireAuth(async (request: NextRequest, user: AuthenticatedUser) => {

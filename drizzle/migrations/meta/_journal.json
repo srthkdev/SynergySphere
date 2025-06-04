@@ -8,6 +8,20 @@
       "when": 1749031804159,
       "tag": "0000_friendly_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1749068070838,
+      "tag": "0001_stale_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749069687892,
+      "tag": "0002_wise_ken_ellis",
+      "breakpoints": true
     }
   ]
 }

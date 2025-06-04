@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fetchTasksByProjectId, updateTask, deleteTask, fetchProjectMembers } from "@/lib/queries";
 import { Task as BackendTask, TaskStatus, ProjectMember, TaskPriority } from "@/types";
 import { CreateEditTaskDialog } from "../task/CreateEditTaskDialog";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { useRouter } from "next/navigation";
 import { 
   Select, 
@@ -139,6 +139,9 @@ export function TasksTab({ projectId }: { projectId: string }) {
   
   // Check if current user is an admin
   const isAdmin = currentUserId ? memberMap[currentUserId]?.role === 'admin' : false;
+  
+  // Check if current user is a member or admin
+  const canCreateTasks = currentUserId ? memberMap[currentUserId]?.role === 'admin' || memberMap[currentUserId]?.role === 'member' : false;
 
   // Check if task is assigned to current user
   const isTaskAssignee = (task: FrontendTask) => {
@@ -266,76 +269,83 @@ export function TasksTab({ projectId }: { projectId: string }) {
     router.push(`/task/${item.id}`);
   };
 
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    return 'Unknown error';
+  };
+
   if (isLoading) return <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (tasksError) return <div className="text-red-500 text-center py-10">Error loading tasks: {tasksError.message}</div>;
+  if (tasksError) return <div className="text-red-500 text-center py-10">Error loading tasks: {getErrorMessage(tasksError)}</div>;
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Tasks</h2>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select 
-                value={selectedStatus} 
-                onValueChange={(value) => setSelectedStatus(value as TaskStatus | 'ALL')}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Statuses</SelectItem>
-                  {taskStatusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              <Select 
-                value={selectedPriority} 
-                onValueChange={(value) => setSelectedPriority(value as TaskPriority | 'ALL')}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Priorities</SelectItem>
-                  {priorityOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <ViewSwitcher 
-              currentView={currentView} 
-              onViewChange={setCurrentView}
-              availableViews={['kanban', 'gallery', 'list']}
-            />
-            
-            {isAdmin && (
-              <Button onClick={handleAddNewTask} className="flex items-center gap-2">
-                <PlusCircle className="h-4 w-4" /> Add Task
-              </Button>
-            )}
+      <div className="space-y-4">
+        {/* Header with actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b mb-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Status filter */}
+            <Select value={selectedStatus} onValueChange={(value: TaskStatus | 'ALL') => setSelectedStatus(value)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Statuses</SelectItem>
+                {taskStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Priority filter */}
+            <Select value={selectedPriority} onValueChange={(value: TaskPriority | 'ALL') => setSelectedPriority(value)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Filter by priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Priorities</SelectItem>
+                {priorityOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2 items-center">
+            {/* View switcher */}
+            <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
+            {/* Create task button */}
+            <Button onClick={handleAddNewTask} size="sm" className="ml-2">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Create Task
+            </Button>
           </div>
         </div>
 
-        {filteredTasks.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              {selectedStatus === 'ALL' && selectedPriority === 'ALL'
-                ? 'No tasks found' 
-                : `No tasks found for the selected filters`}
-            </p>
+        {/* Main content */}
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : tasksError ? (
+          <div className="text-red-500 text-center py-10">
+            Error loading tasks: {getErrorMessage(tasksError)}
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4">
+            <div className="text-center space-y-2">
+              <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-medium">No tasks yet</h3>
+              <p className="text-sm text-muted-foreground">Get started by creating a new task for this project.</p>
+            </div>
+            {canCreateTasks && (
+              <Button onClick={handleAddNewTask}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Create Task
+              </Button>
+            )}
           </div>
         ) : (
           <div>
@@ -367,21 +377,20 @@ export function TasksTab({ projectId }: { projectId: string }) {
           </div>
         )}
 
-        {isAdmin && (
-          <CreateEditTaskDialog 
-            open={isCreateTaskDialogOpen} 
-            onOpenChange={(isOpen) => {
-              setIsCreateTaskDialogOpen(isOpen);
-              if (!isOpen) {
-                setTimeout(() => {
-                  setTaskToEdit(null);
-                }, 300);
-              }
-            }} 
-            projectId={projectId} 
-            taskToEdit={taskToEdit}
-          />
-        )}
+        <CreateEditTaskDialog 
+          key={taskToEdit ? taskToEdit.id : `new-${projectId}`}
+          open={isCreateTaskDialogOpen} 
+          onOpenChange={(isOpen) => {
+            setIsCreateTaskDialogOpen(isOpen);
+            if (!isOpen) {
+              setTimeout(() => {
+                setTaskToEdit(null);
+              }, 300);
+            }
+          }} 
+          projectId={projectId} 
+          taskToEdit={taskToEdit}
+        />
       </div>
 
       {/* Replace the separate image preview dialog with AttachmentViewer */}

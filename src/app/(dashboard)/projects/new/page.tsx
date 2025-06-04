@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   Save, 
-  Plus,
+  Target,
+  Upload,
   X,
   Calendar,
-  DollarSign,
-  Users,
-  Target
+  User,
+  Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,29 +26,50 @@ interface ProjectData {
   description: string;
   status: 'planning' | 'active' | 'on-hold' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  startDate: string;
-  endDate: string;
-  budget: number;
-  teamSize: number;
   tags: string[];
+  managerId: string;
+  deadline: string;
+  imageUrl: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [newTag, setNewTag] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [tagInput, setTagInput] = useState('');
   
   const [formData, setFormData] = useState<ProjectData>({
     name: '',
     description: '',
     status: 'planning',
     priority: 'medium',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-    budget: 0,
-    teamSize: 1,
-    tags: []
+    tags: [],
+    managerId: '',
+    deadline: '',
+    imageUrl: '',
   });
+
+  // Fetch users for project manager selection
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+          const userData = await response.json();
+          setUsers(userData);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleInputChange = (field: keyof ProjectData, value: any) => {
     setFormData(prev => ({
@@ -57,13 +78,16 @@ export default function NewProjectPage() {
     }));
   };
 
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
-      setNewTag('');
+  const handleAddTag = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      e.preventDefault();
+      if (!formData.tags.includes(tagInput.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, tagInput.trim()]
+        }));
+      }
+      setTagInput('');
     }
   };
 
@@ -72,6 +96,17 @@ export default function NewProjectPage() {
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // For now, we'll just create a local URL
+    // In production, you'd upload to a cloud storage service
+    const imageUrl = URL.createObjectURL(file);
+    handleInputChange('imageUrl', imageUrl);
+    toast.success('Image uploaded successfully!');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,18 +120,19 @@ export default function NewProjectPage() {
     setLoading(true);
     
     try {
+      const submitData = {
+        ...formData,
+        tags: JSON.stringify(formData.tags), // Convert tags array to JSON string
+        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
+        managerId: formData.managerId || null,
+      };
+
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          progress: 0,
-          spent: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }),
+        body: JSON.stringify(submitData),
       });
 
       if (response.ok) {
@@ -155,7 +191,7 @@ export default function NewProjectPage() {
             {/* Basic Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 ">
+                <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
                   Basic Information
                 </CardTitle>
@@ -171,6 +207,110 @@ export default function NewProjectPage() {
                     required
                   />
                 </div>
+
+                {/* Tags */}
+                <div>
+                  <Label htmlFor="tags" className="mb-1 flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Tags
+                  </Label>
+                  <Input
+                    id="tags"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleAddTag}
+                    placeholder="Type a tag and press Enter"
+                  />
+                  {formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                          {tag}
+                          <X 
+                            className="h-3 w-3 cursor-pointer" 
+                            onClick={() => handleRemoveTag(tag)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Project Manager */}
+                <div>
+                  <Label htmlFor="manager" className="mb-1 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Project Manager
+                  </Label>
+                  <Select value={formData.managerId} onValueChange={(value) => handleInputChange('managerId', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Deadline */}
+                <div>
+                  <Label htmlFor="deadline" className="mb-1 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Deadline
+                  </Label>
+                  <Input
+                    id="deadline"
+                    type="date"
+                    value={formData.deadline}
+                    onChange={(e) => handleInputChange('deadline', e.target.value)}
+                  />
+                </div>
+
+                {/* Image Upload */}
+                <div>
+                  <Label htmlFor="image" className="mb-1 flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Project Image
+                  </Label>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('image')?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Image
+                    </Button>
+                    {formData.imageUrl && (
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={formData.imageUrl} 
+                          alt="Project preview" 
+                          className="h-10 w-10 rounded object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInputChange('imageUrl', '')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div>
                   <Label htmlFor="description" className="mb-1">Description</Label>
@@ -184,114 +324,6 @@ export default function NewProjectPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Timeline & Budget */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Timeline & Budget
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startDate" className="mb-1">Start Date</Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => handleInputChange('startDate', e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="endDate" className="mb-1">End Date</Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      min={formData.startDate}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="budget" className="mb-1">Budget ($)</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="budget"
-                        type="number"
-                        value={formData.budget}
-                        onChange={(e) => handleInputChange('budget', parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="pl-10"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="teamSize" className="mb-1">Team Size</Label>
-                    <div className="relative">
-                      <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="teamSize"
-                        type="number"
-                        value={formData.teamSize}
-                        onChange={(e) => handleInputChange('teamSize', parseInt(e.target.value) || 1)}
-                        placeholder="1"
-                        className="pl-10"
-                        min="1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tags */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tags</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Add a tag"
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  />
-                  <Button type="button" variant="outline" onClick={handleAddTag}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                        {tag}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 ml-1"
-                          onClick={() => handleRemoveTag(tag)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Sidebar */}
@@ -302,6 +334,33 @@ export default function NewProjectPage() {
                 <CardTitle>Project Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="priority" className="mb-1">Priority</Label>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      {['low', 'medium', 'high'].map((priority) => (
+                        <label key={priority} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="priority"
+                            value={priority}
+                            checked={formData.priority === priority}
+                            onChange={(e) => handleInputChange('priority', e.target.value)}
+                            className="sr-only"
+                          />
+                          <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                            formData.priority === priority 
+                              ? getPriorityColor(priority)
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                          }`}>
+                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <Label htmlFor="status" className="mb-1">Status</Label>
                   <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
@@ -317,23 +376,6 @@ export default function NewProjectPage() {
                   </Select>
                   <Badge className={`mt-2 ${getStatusColor(formData.status)}`}>
                     {formData.status.charAt(0).toUpperCase() + formData.status.slice(1).replace('-', ' ')}
-                  </Badge>
-                </div>
-
-                <div>
-                  <Label htmlFor="priority" className="mb-1">Priority</Label>
-                  <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Badge className={`mt-2 ${getPriorityColor(formData.priority)}`}>
-                    {formData.priority.charAt(0).toUpperCase() + formData.priority.slice(1)}
                   </Badge>
                 </div>
               </CardContent>
