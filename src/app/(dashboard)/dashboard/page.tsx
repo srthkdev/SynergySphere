@@ -308,7 +308,7 @@ export default function DashboardPage() {
 							<div className="text-center py-8 text-muted-foreground">
 								<Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
 								<p>No active projects yet</p>
-								<Link href="/projects">
+								<Link href="/projects/new">
 									<Button variant="outline" size="sm" className="mt-2">
 										<Plus className="mr-2 h-4 w-4" />
 										Create Project

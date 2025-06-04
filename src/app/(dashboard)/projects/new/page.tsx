@@ -155,14 +155,14 @@ export default function NewProjectPage() {
             {/* Basic Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 ">
                   <Target className="h-5 w-5" />
                   Basic Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Project Name *</Label>
+                  <Label htmlFor="name" className="mb-1">Project Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -173,7 +173,7 @@ export default function NewProjectPage() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="mb-1">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
@@ -196,7 +196,7 @@ export default function NewProjectPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="startDate">Start Date</Label>
+                    <Label htmlFor="startDate" className="mb-1">Start Date</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -206,7 +206,7 @@ export default function NewProjectPage() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate" className="mb-1">End Date</Label>
                     <Input
                       id="endDate"
                       type="date"
@@ -219,7 +219,7 @@ export default function NewProjectPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="budget">Budget ($)</Label>
+                    <Label htmlFor="budget" className="mb-1">Budget ($)</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -236,7 +236,7 @@ export default function NewProjectPage() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="teamSize">Team Size</Label>
+                    <Label htmlFor="teamSize" className="mb-1">Team Size</Label>
                     <div className="relative">
                       <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -303,7 +303,7 @@ export default function NewProjectPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status" className="mb-1">Status</Label>
                   <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -321,7 +321,7 @@ export default function NewProjectPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority" className="mb-1">Priority</Label>
                   <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
                     <SelectTrigger>
                       <SelectValue />
