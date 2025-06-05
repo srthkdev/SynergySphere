@@ -356,12 +356,11 @@ export function TasksTab({ projectId }: { projectId: string }) {
                 tasks={filteredTasks}
                 onTaskUpdate={(taskId: string, updates: any) => handleTaskUpdate(taskId, updates)}
                 onTaskCreate={(status) => {
-                  // Create a new task with the specified status
-                  setTaskToEdit(null); // Ensure we're creating a new task
+                  setTaskToEdit(null); 
                   setIsCreateTaskDialogOpen(true);
-                  // Note: The dialog will need to be enhanced to accept initial status
                 }}
                 onTaskClick={(task: any) => handleTaskClick(task as FrontendTask)}
+                isEditModalOpen={isCreateTaskDialogOpen}
               />
             )}
             
@@ -380,6 +379,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
                 type="tasks"
                 onItemUpdate={(itemId: string, updates: any) => handleTaskUpdate(itemId, updates)}
                 onItemClick={(item: any) => handleTaskClick(item as FrontendTask)}
+                isEditModalOpen={isCreateTaskDialogOpen}
               />
             )}
           </div>

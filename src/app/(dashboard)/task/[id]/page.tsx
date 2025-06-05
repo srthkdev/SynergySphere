@@ -24,10 +24,14 @@ import {
   Timer,
   Smile,
   Paperclip,
-  MoreHorizontal
+  MoreHorizontal,
+  File,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
-import { Task, ProjectMember } from "@/types";
-import { fetchProjectMembers } from '@/lib/queries';
+import { Task, ProjectMember, Attachment } from "@/types";
+import { fetchProjectMembers, fetchProjectById } from '@/lib/queries';
+import { fetchAttachments } from '@/lib/utils/file-utils';
 
 interface Comment {
   id: string;
@@ -52,6 +56,9 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [projectTags, setProjectTags] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchTaskAndAssignee = async () => {
@@ -81,6 +88,32 @@ export default function TaskDetailPage() {
           setIsLoadingAssignee(false);
         }
 
+        // Fetch project tags
+        if (taskData.projectId) {
+          try {
+            const project = await fetchProjectById(taskData.projectId);
+            let tags: string[] = [];
+            if (project.tags) {
+              if (Array.isArray(project.tags)) {
+                tags = project.tags;
+              } else if (typeof project.tags === 'string') {
+                try {
+                  // Try JSON parse first
+                  tags = JSON.parse(project.tags);
+                  if (!Array.isArray(tags)) throw new Error();
+                } catch {
+                  // Fallback: split by comma
+                  const tagStr = String(project.tags);
+                  tags = tagStr.split(',').map((t: string) => t.trim()).filter(Boolean);
+                }
+              }
+            }
+            setProjectTags(tags);
+          } catch (err) {
+            setProjectTags([]);
+          }
+        }
+
       } catch (error) {
         console.error('Error fetching task details:', error);
         setTask(null); // Clear task on error
@@ -101,10 +134,26 @@ export default function TaskDetailPage() {
       }
     };
 
+    const fetchTaskAttachments = async () => {
+      if (!taskId) return;
+      setAttachmentsLoading(true);
+      try {
+        const result = await fetchAttachments(undefined, taskId);
+        setAttachments(result);
+      } catch (error) {
+        setAttachments([]);
+      } finally {
+        setAttachmentsLoading(false);
+      }
+    };
+
     if (taskId) {
-      // Promise.all([fetchTask(), fetchComments()]).finally(() => { // Original
-      Promise.all([fetchTaskAndAssignee(), fetchTaskComments()]).finally(() => {
-        setLoading(false); // Combined loading state
+      Promise.all([
+        fetchTaskAndAssignee(),
+        fetchTaskComments(),
+        fetchTaskAttachments()
+      ]).finally(() => {
+        setLoading(false);
       });
     }
   }, [taskId]);
@@ -272,6 +321,44 @@ export default function TaskDetailPage() {
                 </CardContent>
               </Card>
 
+              {task.attachmentUrl && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Attachment</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {task.attachmentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img
+                        src={task.attachmentUrl}
+                        alt="Task Attachment"
+                        className="max-h-48 rounded-md border mx-auto"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {task.attachmentUrl.match(/\.pdf$/i) ? (
+                          <FileText className="h-8 w-8 text-red-500" />
+                        ) : task.attachmentUrl.match(/\.(doc|docx)$/i) ? (
+                          <FileText className="h-8 w-8 text-blue-500" />
+                        ) : task.attachmentUrl.match(/\.txt$/i) ? (
+                          <FileText className="h-8 w-8 text-gray-500" />
+                        ) : (
+                          <File className="h-8 w-8 text-gray-500" />
+                        )}
+                        <a
+                          href={task.attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-blue-600 hover:text-blue-800"
+                          download
+                        >
+                          Download Attachment
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader>
                   <CardTitle>Progress</CardTitle>
@@ -303,10 +390,61 @@ export default function TaskDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    <p className="text-sm text-muted-foreground">No tags assigned</p>
+                    {projectTags.length > 0 ? (
+                      projectTags.map((tag, idx) => (
+                        <Badge key={idx} variant="secondary">{tag}</Badge>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No tags assigned</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+
+              {attachments.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Attachments</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-4">
+                      {attachments.map(att => (
+                        <div key={att.id} className="flex flex-col items-center w-32">
+                          {att.fileType.startsWith('image/') ? (
+                            <img
+                              src={`data:${att.fileType};base64,${att.base64Data}`}
+                              alt={att.fileName}
+                              className="w-24 h-24 object-cover rounded border mb-2"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center mb-2">
+                              {att.fileType === 'application/pdf' ? (
+                                <FileText className="h-8 w-8 text-red-500" />
+                              ) : att.fileType.includes('word') || att.fileName.toLowerCase().endsWith('.doc') || att.fileName.toLowerCase().endsWith('.docx') ? (
+                                <FileText className="h-8 w-8 text-blue-500" />
+                              ) : att.fileType === 'text/plain' || att.fileName.toLowerCase().endsWith('.txt') ? (
+                                <FileText className="h-8 w-8 text-gray-500" />
+                              ) : (
+                                <File className="h-8 w-8 text-gray-500" />
+                              )}
+                            </div>
+                          )}
+                          <a
+                            href={att.fileType.startsWith('image/') ? `data:${att.fileType};base64,${att.base64Data}` : `data:${att.fileType};base64,${att.base64Data}`}
+                            download={att.fileName}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 underline text-center truncate w-full"
+                            title={att.fileName}
+                          >
+                            {att.fileName}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
             <TabsContent value="chatter" className="space-y-4">

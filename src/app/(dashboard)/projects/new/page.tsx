@@ -54,6 +54,7 @@ export default function NewProjectPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [budgetAmountInput, setBudgetAmountInput] = useState("");
   
   const [formData, setFormData] = useState<ProjectData>({
     name: '',
@@ -183,7 +184,7 @@ export default function NewProjectPage() {
         description: formData.description,
         status: formData.status,
         priority: formData.priority,
-        tags: formData.tags.length > 0 ? formData.tags.join(',') : undefined,
+        tags: formData.tags.length > 0 ? JSON.stringify(formData.tags) : undefined,
         managerId: formData.managerId || undefined,
         deadline: formattedDeadline,
         createBudget: formData.createBudget,
@@ -444,7 +445,10 @@ export default function NewProjectPage() {
                       type="checkbox"
                       id="createBudget"
                       checked={formData.createBudget}
-                      onChange={(e) => setFormData(prev => ({ ...prev, createBudget: e.target.checked }))}
+                      onChange={e => {
+                        setFormData(prev => ({ ...prev, createBudget: e.target.checked }));
+                        if (e.target.checked) setBudgetAmountInput("");
+                      }}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="createBudget" className="text-sm font-medium text-gray-700">
@@ -463,8 +467,15 @@ export default function NewProjectPage() {
                           id="budgetAmount"
                           min="0"
                           step="0.01"
-                          value={formData.budgetAmount}
-                          onChange={(e) => setFormData(prev => ({ ...prev, budgetAmount: parseFloat(e.target.value) || 0 }))}
+                          value={budgetAmountInput}
+                          onChange={e => {
+                            setBudgetAmountInput(e.target.value);
+                            const val = parseFloat(e.target.value);
+                            setFormData(prev => ({
+                              ...prev,
+                              budgetAmount: isNaN(val) ? 0 : val
+                            }));
+                          }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter budget amount"
                         />

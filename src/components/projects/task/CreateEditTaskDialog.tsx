@@ -3,7 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as z from "zod";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, File, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import { Task, TaskStatus, ProjectMember, Project } from "@/types";
 import { createTask, updateTask, fetchProjectMembers, fetchProjectById, fetchProjects } from "@/lib/queries";
 import { taskStatusOptions } from "../tabs/TasksTab";
 import { useSession } from "@/lib/auth/auth-client";
+import { uploadAttachment } from '@/lib/utils/file-utils';
 
 // Define priority options
 const priorityOptions = [
@@ -36,6 +37,7 @@ const taskFormSchema = z.object({
   assigneeId: z.string().nullable(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   attachmentUrl: z.string().nullable(),
+  tags: z.string().min(1, "At least one tag is required"),
 });
 
 // Create a type from our schema
@@ -47,6 +49,13 @@ interface CreateEditTaskDialogProps {
   projectId: string;
   taskToEdit?: Task | null;
 }
+
+const ACCEPTED_TYPES = [
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/*",
+  "application/pdf",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".doc", ".docx", ".txt"
+];
 
 export function CreateEditTaskDialog({
   open,
@@ -69,6 +78,7 @@ export function CreateEditTaskDialog({
     assigneeId: null,
     priority: 'MEDIUM',
     attachmentUrl: null,
+    tags: "",
   };
 
   const isEditing = !!taskToEdit;
@@ -85,6 +95,7 @@ export function CreateEditTaskDialog({
           assigneeId: taskToEdit.assigneeId,
           priority: taskToEdit.priority || 'MEDIUM',
           attachmentUrl: taskToEdit.attachmentUrl || null,
+          tags: Array.isArray(taskToEdit.tags) ? taskToEdit.tags.join(", ") : (typeof taskToEdit.tags === 'string' ? taskToEdit.tags : ""),
         }
       : defaultFormValues,
   });
@@ -143,6 +154,21 @@ export function CreateEditTaskDialog({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File too large. Maximum size is 10MB.");
+        return;
+      }
+      // Validate file type/extension
+      const isValidType = ACCEPTED_TYPES.some(type => {
+        if (type === "image/*") return file.type.startsWith("image/");
+        if (type.startsWith(".")) return file.name.toLowerCase().endsWith(type);
+        return file.type === type;
+      });
+      if (!isValidType) {
+        toast.error("File type not supported. Allowed: images, PDF, DOC, DOCX, TXT.");
+        return;
+      }
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -158,30 +184,12 @@ export function CreateEditTaskDialog({
     form.setValue('attachmentUrl', null);
   };
 
-  // Mock function to simulate uploading an image to a server
-  const uploadImage = async (file: File): Promise<string> => {
-    // In a real implementation, this would upload the file to your server/cloud storage
-    // and return the URL
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Simulate a URL returned from server
-        resolve(`https://example.com/uploads/${file.name}`);
-      }, 500);
-    });
-  };
-
   const { 
     mutate: manageTask, 
     isPending: isSubmittingTask,
     error: submitError
   } = useMutation({
-    mutationFn: async ({ taskData, currentTask }: { taskData: TaskFormValues; currentTask?: Task | null }) => {
-      // If there's a new image file, upload it first
-      let attachmentUrl = taskData.attachmentUrl;
-      if (imageFile) {
-        attachmentUrl = await uploadImage(imageFile);
-      }
-      
+    mutationFn: async ({ taskData, currentTask }: { taskData: Omit<TaskFormValues, 'tags'> & { tags: string[] }; currentTask?: Task | null }) => {
       const apiData = {
         projectId: taskData.projectId,
         title: taskData.title?.trim() === "" ? "Untitled Task" : taskData.title,
@@ -189,16 +197,24 @@ export function CreateEditTaskDialog({
         status: taskData.status,
         dueDate: taskData.dueDate?.trim() === "" ? null : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null),
         priority: taskData.priority,
-        attachmentUrl: attachmentUrl,
-        assigneeId: taskData.assigneeId, // Simply pass through the assigneeId - it's already null if unassigned
+        assigneeId: taskData.assigneeId,
+        tags: taskData.tags,
       };
-
-      console.log("Final API payload:", apiData);
-
+      let savedTask;
       if (currentTask) {
-        return updateTask(taskData.projectId, currentTask.id, apiData);
+        savedTask = await updateTask(taskData.projectId, currentTask.id, apiData);
+      } else {
+        savedTask = await createTask(taskData.projectId, apiData);
       }
-      return createTask(taskData.projectId, apiData);
+      // Upload attachment if present
+      if (imageFile && savedTask?.id) {
+        try {
+          await uploadAttachment(imageFile, undefined, savedTask.id);
+        } catch (err) {
+          toast.error('Attachment upload failed, but task was saved.');
+        }
+      }
+      return savedTask;
     },
     onSuccess: (savedTask: Task, variables) => {
       const finalProjectId = variables.taskData.projectId;
@@ -222,8 +238,15 @@ export function CreateEditTaskDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     form.handleSubmit((data: TaskFormValues) => {
-      console.log("Form data before submission:", data);
-      manageTask({ taskData: data, currentTask: taskToEdit });
+      const processedTags = (data.tags || "")
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+      const apiData = {
+        ...data,
+        tags: processedTags,
+      };
+      manageTask({ taskData: apiData, currentTask: taskToEdit });
     })(e);
   };
 
@@ -240,15 +263,15 @@ export function CreateEditTaskDialog({
       }
       onOpenChange(isOpen);
     }}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{taskToEdit ? "Edit Task" : "Create New Task"}</DialogTitle>
           <DialogDescription>
             {taskToEdit ? "Update the details of your task." : "Fill in the details to create a new task."}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-4">
-          <form id="task-form" onSubmit={handleSubmit} className="space-y-5">
+        <ScrollArea className="flex-1 min-h-0 overflow-y-auto pr-2">
+          <form id="task-form" onSubmit={handleSubmit} className="space-y-6 p-4">
             {/* Project field (NOW A DROPDOWN) */}
             <div className="space-y-2">
               <Label htmlFor="projectId">Project <span className="text-red-500">*</span></Label>
@@ -286,20 +309,26 @@ export function CreateEditTaskDialog({
               )}
             </div>
             
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="title">Title <span className="text-red-500">*</span></Label>
               <Input id="title" {...form.register("title")} disabled={isSubmittingTask} />
               {form.formState.errors.title && <p className="text-xs text-red-500 mt-1">{form.formState.errors.title.message}</p>}
             </div>
             
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" {...form.register("description")} disabled={isSubmittingTask} className="min-h-[100px]" />
               {form.formState.errors.description && <p className="text-xs text-red-500 mt-1">{form.formState.errors.description.message}</p>}
             </div>
             
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags <span className="text-red-500">*</span> <span className="text-xs text-muted-foreground">(comma-separated)</span></Label>
+              <Input id="tags" {...form.register("tags")} disabled={isSubmittingTask} placeholder="e.g. urgent, frontend, bug" />
+              {form.formState.errors.tags && <p className="text-xs text-red-500 mt-1">{form.formState.errors.tags.message}</p>}
+            </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Controller
                   name="status"
@@ -322,7 +351,7 @@ export function CreateEditTaskDialog({
                 {form.formState.errors.status && <p className="text-xs text-red-500 mt-1">{form.formState.errors.status.message}</p>}
               </div>
               
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="dueDate">Due Date</Label>
                 <Input id="dueDate" type="date" {...form.register("dueDate")} disabled={isSubmittingTask} />
                 {form.formState.errors.dueDate && <p className="text-xs text-red-500 mt-1">{form.formState.errors.dueDate.message}</p>}
@@ -330,8 +359,7 @@ export function CreateEditTaskDialog({
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Priority field */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
                 <Controller
                   name="priority"
@@ -354,8 +382,7 @@ export function CreateEditTaskDialog({
                 {form.formState.errors.priority && <p className="text-xs text-red-500 mt-1">{form.formState.errors.priority.message}</p>}
               </div>
               
-              {/* Assignee field */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="assigneeId">Assign To</Label>
                 <Controller
                   name="assigneeId"
@@ -397,27 +424,30 @@ export function CreateEditTaskDialog({
             </div>
             
             {/* Image Upload */}
-            <div>
+            <div className="space-y-2">
               <Label>Attachment</Label>
               <div className="border-2 border-dashed rounded-md p-4 mt-1">
-                {imagePreview ? (
-                  <div className="relative">
-                    <img 
-                      src={imagePreview} 
-                      alt="Attachment preview" 
+                {imagePreview && imageFile ? (
+                  imageFile.type.startsWith("image/") ? (
+                    <img
+                      src={imagePreview}
+                      alt="Attachment preview"
                       className="max-h-48 mx-auto rounded-md"
                     />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={removeImage}
-                      disabled={isSubmittingTask}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 justify-center">
+                      {imageFile.type === "application/pdf" ? (
+                        <FileText className="h-8 w-8 text-red-500" />
+                      ) : imageFile.type.includes("word") || imageFile.name.toLowerCase().endsWith(".doc") || imageFile.name.toLowerCase().endsWith(".docx") ? (
+                        <FileText className="h-8 w-8 text-blue-500" />
+                      ) : imageFile.type === "text/plain" || imageFile.name.toLowerCase().endsWith(".txt") ? (
+                        <FileText className="h-8 w-8 text-gray-500" />
+                      ) : (
+                        <File className="h-8 w-8 text-gray-500" />
+                      )}
+                      <span className="text-sm">{imageFile.name}</span>
+                    </div>
+                  )
                 ) : (
                   <div className="text-center">
                     <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
@@ -428,15 +458,20 @@ export function CreateEditTaskDialog({
                       id="image-upload"
                       type="file"
                       className="hidden"
+                      onClick={e => { e.stopPropagation(); }}
                       onChange={handleImageUpload}
-                      accept="image/*"
+                      accept="image/*,application/pdf,.doc,.docx,.txt"
                       disabled={isSubmittingTask}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       className="mt-2"
-                      onClick={() => document.getElementById('image-upload')?.click()}
+                      onClick={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        document.getElementById('image-upload')?.click();
+                      }}
                       disabled={isSubmittingTask}
                     >
                       Select File

@@ -35,12 +35,19 @@ export const GET = async (request: NextRequest) => {
           createdAt: task.createdAt,
           updatedAt: task.updatedAt,
           attachmentUrl: task.attachmentUrl,
+          tags: task.tags,
         })
         .from(task)
         .where(eq(task.projectId, projectId))
         .orderBy(task.createdAt);
 
-      return NextResponse.json(projectTasks);
+      // Parse tags from JSON string to array
+      const tasksWithParsedTags = projectTasks.map(t => ({
+        ...t,
+        tags: t.tags ? JSON.parse(t.tags) : [],
+      }));
+
+      return NextResponse.json(tasksWithParsedTags);
     } catch (error) {
       console.error("Error fetching project tasks:", error);
       return NextResponse.json({ error: "Failed to fetch project tasks" }, { status: 500 });
@@ -71,7 +78,19 @@ export const POST = async (request: NextRequest) => {
         return NextResponse.json({ error: validation.error }, { status: 400 });
       }
 
-      const { title, description, assigneeId, priority, dueDate } = validation.data;
+      const { title, description, assigneeId, priority, dueDate, tags } = validation.data;
+
+      if (!tags || (Array.isArray(tags) ? tags.length === 0 : tags.trim() === "")) {
+        return NextResponse.json({ error: "At least one tag is required" }, { status: 400 });
+      }
+
+      let tagsArray: string[] = [];
+      try {
+        tagsArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+        if (!Array.isArray(tagsArray) || tagsArray.length === 0) throw new Error();
+      } catch {
+        return NextResponse.json({ error: "Tags must be a non-empty array" }, { status: 400 });
+      }
 
       // Create the task without checking if assignee is a project member
       // This allows assigning to any valid user ID
@@ -83,6 +102,7 @@ export const POST = async (request: NextRequest) => {
         createdById: user.id,
         priority,
         dueDate: dueDate ? new Date(dueDate) : null,
+        tags: JSON.stringify(tagsArray),
       }).returning();
 
       return NextResponse.json(newTask, { status: 201 });
