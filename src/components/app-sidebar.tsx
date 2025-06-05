@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import * as React from "react"
 import { useState, useEffect } from "react"
+import { Badge } from "@/components/ui/badge"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -33,8 +34,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Navigation data
-const navMain = [
+// Base navigation data (will be enhanced with dynamic data in component)
+const baseNavMain = [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -143,6 +144,32 @@ function AppHeader() {
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const [projects, setProjects] = useState<{name: string, url: string, icon: any}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Create navigation with dynamic badge for Inbox
+  const navMain = baseNavMain.map(item => {
+    if (item.title === "Inbox") {
+      return {
+        ...item,
+        badge: unreadNotifications > 0 ? unreadNotifications : undefined
+      };
+    }
+    return item;
+  });
+
+  // Fetch unread notifications count
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch('/api/notifications?unread=true');
+      if (response.ok) {
+        const notifications = await response.json();
+        setUnreadNotifications(notifications.length);
+        console.log('Unread notifications count:', notifications.length); // Debug log
+      }
+    } catch (error) {
+      console.error('Failed to fetch unread notifications:', error);
+    }
+  };
 
   // Fetch real projects from API
   useEffect(() => {
@@ -177,6 +204,11 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
     }
 
     fetchProjects();
+    fetchUnreadCount();
+    
+    // Refresh unread count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

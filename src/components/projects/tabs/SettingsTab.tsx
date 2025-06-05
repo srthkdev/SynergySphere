@@ -2,8 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Project } from "@/types";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
+import { Edit } from "lucide-react";
+import Link from "next/link";
 
 export function SettingsTab({ project }: { project: Project }) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const router = useRouter();
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Project Settings</h2>
@@ -15,8 +23,11 @@ export function SettingsTab({ project }: { project: Project }) {
               <p className="text-sm text-muted-foreground mb-4">
                 Update your project's basic information.
               </p>
-              <Button onClick={() => toast.info("Project settings will be implemented next")}>
-                Edit Project
+              <Button asChild>
+                <Link href={`/projects/edit/${project.id}`}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Project
+                </Link>
               </Button>
             </div>
             
@@ -27,7 +38,7 @@ export function SettingsTab({ project }: { project: Project }) {
               </p>
               <Button 
                 variant="destructive"
-                onClick={() => toast.error("This project can't be deleted yet.")}
+                onClick={() => setShowDeleteDialog(true)}
               >
                 Delete Project
               </Button>
@@ -35,6 +46,13 @@ export function SettingsTab({ project }: { project: Project }) {
           </div>
         </CardContent>
       </Card>
+      
+      <DeleteProjectDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        project={project}
+        redirectAfterDelete={true}
+      />
     </div>
   );
 } 

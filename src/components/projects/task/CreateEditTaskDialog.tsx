@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { Task, TaskStatus, ProjectMember, Project } from "@/types";
 import { createTask, updateTask, fetchProjectMembers, fetchProjectById, fetchProjects } from "@/lib/queries";
+import { uploadAttachment } from '@/lib/utils/file-utils';
 import { taskStatusOptions } from "../tabs/TasksTab";
 import { useSession } from "@/lib/auth/auth-client";
 
@@ -155,16 +156,15 @@ export function CreateEditTaskDialog({
     form.setValue('attachmentUrl', null);
   };
 
-  // Mock function to simulate uploading an image to a server
-  const uploadImage = async (file: File): Promise<string> => {
-    // In a real implementation, this would upload the file to your server/cloud storage
-    // and return the URL
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Simulate a URL returned from server
-        resolve(`https://example.com/uploads/${file.name}`);
-      }, 500);
-    });
+  // Replace the mock uploadImage function with actual attachment upload
+  const uploadTaskAttachment = async (file: File, taskId: string): Promise<string> => {
+    try {
+      const attachment = await uploadAttachment(file, undefined, taskId);
+      return `data:${attachment.fileType};base64,${attachment.base64Data}`;
+    } catch (error) {
+      console.error('Failed to upload attachment:', error);
+      throw error;
+    }
   };
 
   const { 
@@ -173,12 +173,6 @@ export function CreateEditTaskDialog({
     error: submitError
   } = useMutation({
     mutationFn: async ({ taskData, currentTask }: { taskData: TaskFormValues; currentTask?: Task | null }) => {
-      // If there's a new image file, upload it first
-      let attachmentUrl = taskData.attachmentUrl;
-      if (imageFile) {
-        attachmentUrl = await uploadImage(imageFile);
-      }
-      
       const apiData = {
         title: taskData.title?.trim() === "" ? "Untitled Task" : taskData.title,
         description: taskData.description?.trim() === "" ? undefined : taskData.description,
@@ -190,10 +184,24 @@ export function CreateEditTaskDialog({
 
       console.log("Final API payload:", apiData);
 
+      let savedTask: Task;
       if (currentTask) {
-        return updateTask(taskData.projectId, currentTask.id, apiData);
+        savedTask = await updateTask(taskData.projectId, currentTask.id, apiData);
+      } else {
+        savedTask = await createTask(taskData.projectId, apiData);
       }
-      return createTask(taskData.projectId, apiData);
+
+      // If there's a new image file, upload it as an attachment after task creation
+      if (imageFile && savedTask) {
+        try {
+          await uploadTaskAttachment(imageFile, savedTask.id);
+        } catch (error) {
+          console.error('Failed to upload attachment:', error);
+          // Don't fail the entire operation, just log the error
+        }
+      }
+
+      return savedTask;
     },
     onSuccess: (savedTask: Task, variables) => {
       const finalProjectId = variables.taskData.projectId;

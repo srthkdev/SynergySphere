@@ -137,7 +137,6 @@ export const notification = pgTable("notification", {
   taskId: uuid("task_id")
     .references(() => task.id, { onDelete: "cascade" }),
   isRead: boolean("is_read").notNull().default(false),
-  isArchived: boolean("is_archived").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

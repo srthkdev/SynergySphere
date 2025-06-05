@@ -95,18 +95,26 @@ export async function DELETE(
   return requireAuth(request, async (user: AuthenticatedUser) => {
     try {
       const { id } = await params;
+      console.log(`DELETE /api/projects/${id} - User: ${user.id}`);
 
       // Check if user can modify this project
       const canModify = await canModifyProject(user.id, id);
+      console.log(`Can modify project ${id}: ${canModify}`);
+      
       if (!canModify) {
+        console.log(`Access denied for user ${user.id} to delete project ${id}`);
         return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
       }
 
-      await db.delete(project).where(eq(project.id, id));
+      console.log(`Attempting to delete project ${id}...`);
+      const result = await db.delete(project).where(eq(project.id, id));
+      console.log(`Delete result:`, result);
 
+      console.log(`Project ${id} deleted successfully`);
       return NextResponse.json({ message: "Project deleted successfully" });
     } catch (error) {
       console.error("Error deleting project:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : error);
       return NextResponse.json({ error: "Failed to delete project" }, { status: 500 });
     }
   });

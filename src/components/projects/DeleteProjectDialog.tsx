@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 import {
   Dialog,
@@ -19,14 +20,17 @@ interface DeleteProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project | null;
+  redirectAfterDelete?: boolean;
 }
 
 export function DeleteProjectDialog({
   open,
   onOpenChange,
   project,
+  redirectAfterDelete = false,
 }: DeleteProjectDialogProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const deleteProjectMutation = useMutation({
     mutationFn: () => {
@@ -35,8 +39,13 @@ export function DeleteProjectDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project', project?.id] });
       toast.success("Project deleted successfully!");
       onOpenChange(false);
+      
+      if (redirectAfterDelete) {
+        router.push('/projects');
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete project");

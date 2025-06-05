@@ -60,7 +60,6 @@ interface Notification {
   projectId?: string;
   taskId?: string;
   isRead: boolean;
-  isArchived: boolean;
   createdAt: string;
 }
 
@@ -166,17 +165,13 @@ export default function InboxPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { unreadCount: unreadMentions } = useChat();
 
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const url = showArchived 
-        ? '/api/notifications?archived=true' 
-        : '/api/notifications';
-      const response = await fetch(url);
+      const response = await fetch('/api/notifications');
       if (response.ok) {
         const data = await response.json();
         setNotifications(data);
@@ -293,90 +288,6 @@ export default function InboxPage() {
     }
   };
 
-  // Archive notification
-  const archiveNotification = async (notificationId: string) => {
-    try {
-      // Optimistically update UI first
-      setNotifications(notifications.filter(n => n.id !== notificationId));
-
-      const response = await fetch('/api/notifications/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationIds: [notificationId], archive: true }),
-      });
-      
-      if (!response.ok) {
-        // Revert the optimistic update on error
-        await refreshData();
-        toast.error('Failed to archive notification');
-      } else {
-        toast.success('Notification archived');
-      }
-    } catch (error) {
-      console.error('Error archiving notification:', error);
-      await refreshData();
-      toast.error('Failed to archive notification');
-    }
-  };
-
-  // Unarchive notification
-  const unarchiveNotification = async (notificationId: string) => {
-    try {
-      // Optimistically update UI first
-      setNotifications(notifications.filter(n => n.id !== notificationId));
-
-      const response = await fetch('/api/notifications/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationIds: [notificationId], archive: false }),
-      });
-      
-      if (!response.ok) {
-        // Revert the optimistic update on error
-        await refreshData();
-        toast.error('Failed to unarchive notification');
-      } else {
-        toast.success('Notification unarchived');
-      }
-    } catch (error) {
-      console.error('Error unarchiving notification:', error);
-      await refreshData();
-      toast.error('Failed to unarchive notification');
-    }
-  };
-
-  // Archive all notifications
-  const archiveAllNotifications = async () => {
-    try {
-      const unArchivedNotifications = notifications.filter(n => !n.isArchived);
-      if (unArchivedNotifications.length === 0) {
-        toast.info('No notifications to archive');
-        return;
-      }
-
-      // Optimistically update UI first
-      setNotifications([]);
-
-      const response = await fetch('/api/notifications/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archiveAll: true }),
-      });
-      
-      if (!response.ok) {
-        // Revert the optimistic update on error
-        await refreshData();
-        toast.error('Failed to archive all notifications');
-      } else {
-        toast.success(`Archived ${unArchivedNotifications.length} notifications`);
-      }
-    } catch (error) {
-      console.error('Error archiving all notifications:', error);
-      await refreshData();
-      toast.error('Failed to archive all notifications');
-    }
-  };
-
   // Refresh data
   const refreshData = async () => {
     setLoading(true);
@@ -415,11 +326,6 @@ export default function InboxPage() {
     loadData();
   }, []);
 
-  // Refetch notifications when archive view changes
-  useEffect(() => {
-    fetchNotifications();
-  }, [showArchived]);
-
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread' && notification.isRead) return false;
@@ -449,14 +355,9 @@ export default function InboxPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {showArchived ? "Archived Notifications" : "Inbox"}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Inbox</h1>
           <p className="text-muted-foreground">
-            {showArchived 
-              ? "View and manage your archived notifications" 
-              : "Stay updated with notifications and messages"
-            }
+            Stay updated with notifications and messages
           </p>
         </div>
         <div className="flex gap-2">
@@ -467,23 +368,6 @@ export default function InboxPage() {
           <Button onClick={markAllAsRead} disabled={unreadNotifications === 0}>
             <Check className="mr-2 h-4 w-4" />
             Mark All Read
-          </Button>
-          {!showArchived && (
-            <Button 
-              variant="outline" 
-              onClick={archiveAllNotifications} 
-              disabled={notifications.filter(n => !n.isArchived).length === 0}
-            >
-              <Archive className="mr-2 h-4 w-4" />
-              Archive All
-            </Button>
-          )}
-          <Button 
-            variant={showArchived ? "default" : "outline"}
-            onClick={() => setShowArchived(!showArchived)}
-          >
-            <Archive className="mr-2 h-4 w-4" />
-            {showArchived ? "Show Active" : "Show Archived"}
           </Button>
           <Button 
             variant="outline" 
@@ -638,19 +522,10 @@ export default function InboxPage() {
           ) : filteredNotifications.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                {showArchived ? (
-                  <Archive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                ) : (
-                  <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                )}
-                <h3 className="text-lg font-medium mb-2">
-                  {showArchived ? 'No archived notifications' : 'No notifications'}
-                </h3>
+                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No notifications</h3>
                 <p className="text-muted-foreground">
-                  {showArchived 
-                    ? 'You have no archived notifications yet' 
-                    : (filter === 'all' ? 'You have no notifications yet' : `No ${filter} notifications`)
-                  }
+                  {filter === 'all' ? 'You have no notifications yet' : `No ${filter} notifications`}
                 </p>
               </CardContent>
             </Card>
@@ -704,27 +579,6 @@ export default function InboxPage() {
                                       >
                                         <Check className="mr-2 h-4 w-4" />
                                         Mark as read
-                                      </DropdownMenuItem>
-                                    )}
-                                    {showArchived ? (
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          unarchiveNotification(notification.id);
-                                        }}
-                                      >
-                                        <Archive className="mr-2 h-4 w-4" />
-                                        Unarchive
-                                      </DropdownMenuItem>
-                                    ) : (
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          archiveNotification(notification.id);
-                                        }}
-                                      >
-                                        <Archive className="mr-2 h-4 w-4" />
-                                        Archive
                                       </DropdownMenuItem>
                                     )}
                                   </DropdownMenuContent>

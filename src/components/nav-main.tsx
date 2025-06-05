@@ -19,6 +19,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import { Badge } from "@/components/ui/badge"
 
 const iconColors = [
   'text-sky-500',
@@ -40,6 +41,7 @@ export function NavMain({
     url: string
     icon?: LucideIcon
     isActive?: boolean
+    badge?: number
     items?: {
       title: string
       url: string
@@ -64,6 +66,14 @@ export function NavMain({
                   <Link href={item.url}>
                     {item.icon && <item.icon className={colorClass} />}
                     <span>{item.title}</span>
+                    {item.badge && item.badge > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="ml-auto h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+                      >
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </Badge>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
