@@ -1,4 +1,4 @@
-import { Project, Task, TaskStatus, ProjectMember, Comment, ChatMessage, ChatRoom } from "@/types";
+import { Project, Task, TaskStatus, ProjectMember, Comment, ChatMessage } from "@/types";
 
 export const fetchProjects = async (): Promise<Project[]> => {
   try {
@@ -306,6 +306,7 @@ export const fetchBudgetEntries = async (budgetId: string) => {
 
 export const createBudgetEntry = async (data: {
   budgetId: string;
+  name: string;
   amount: number;
   description: string;
   category: string;
@@ -316,6 +317,7 @@ export const createBudgetEntry = async (data: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       budgetId: data.budgetId,
+      name: data.name,
       amount: data.amount * 100, // Convert to cents
       description: data.description,
       category: data.category,
@@ -383,7 +385,7 @@ export const sendMessage = async (
   return response.json();
 };
 
-export const fetchChatRooms = async (): Promise<ChatRoom[]> => {
+export const fetchChatRooms = async (): Promise<any[]> => {
   const response = await fetch('/api/chat/rooms');
   if (!response.ok) {
     const errorData = await response.json();

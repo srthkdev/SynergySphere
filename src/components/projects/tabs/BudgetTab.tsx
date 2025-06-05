@@ -109,7 +109,7 @@ const formatCurrency = (amount: number, currency: string = 'USD') => {
     currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount / 100); // Convert from cents
+  }).format(amount); // Don't divide by 100 since API already returns in dollars
 };
 
 export function BudgetTab({ projectId }: BudgetTabProps) {
@@ -120,7 +120,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
   const [editingEntry, setEditingEntry] = useState<BudgetEntry | null>(null);
 
   // Fetch project budget
-  const { data: budget, isLoading: budgetLoading } = useQuery<Budget>({
+  const { data: budget, isLoading: budgetLoading, error: budgetError } = useQuery<Budget>({
     queryKey: ['budget', projectId],
     queryFn: async () => {
       const response = await fetch(`/api/projects/${projectId}/budget`);
@@ -130,6 +130,8 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       }
       return response.json();
     },
+    retry: 3,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   // Get budget entries if budget exists
@@ -169,7 +171,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
-          totalBudget: data.totalBudget * 100, // Convert to cents
+          totalBudget: data.totalBudget, // Don't multiply by 100 here, the API handles it
           currency: data.currency,
           name: data.name,
           description: data.description,
@@ -187,6 +189,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] }); // Also invalidate main budgets list
       setIsCreateBudgetOpen(false);
       toast.success('Budget created successfully');
     },
@@ -198,6 +201,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
   // Add expense mutation
   const addExpenseMutation = useMutation({
     mutationFn: async (data: {
+      name: string;
       amount: number;
       description: string;
       category: string;
@@ -267,6 +271,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const name = formData.get('name') as string;
     const amount = parseFloat(formData.get('amount') as string);
     const description = formData.get('description') as string;
     const category = formData.get('category') as string;
@@ -278,6 +283,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     }
     
     addExpenseMutation.mutate({
+      name,
       amount,
       description,
       category: category || 'general',
@@ -296,104 +302,133 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     );
   }
 
+  if (budgetError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Failed to Load Budget</h3>
+          <p className="text-muted-foreground mb-6">
+            {budgetError instanceof Error ? budgetError.message : 'An error occurred while loading the budget'}
+          </p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!budget) {
     return (
       <div className="space-y-6">
         <div className="text-center py-12">
           <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Budget Set</h3>
+          <h3 className="text-lg font-semibold mb-2">No Budget Found</h3>
           <p className="text-muted-foreground mb-6">
-            Create a budget for this project to track expenses and manage finances.
+            No budget is currently set for this project. You can create a new budget to track expenses and manage finances.
           </p>
-          <Dialog open={isCreateBudgetOpen} onOpenChange={setIsCreateBudgetOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Budget
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Project Budget</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateBudget} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Budget Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    placeholder="Enter budget name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    placeholder="Enter budget description"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="totalBudget">Total Budget</Label>
-                  <Input
-                    id="totalBudget"
-                    name="totalBudget"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Enter total budget"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select name="currency" defaultValue="USD">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                      <SelectItem value="CAD">CAD ($)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-3 justify-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ['budget', projectId] });
+                queryClient.invalidateQueries({ queryKey: ['budgets'] });
+              }}
+            >
+              <Target className="h-4 w-4 mr-2" />
+              Check for Budget
+            </Button>
+            <Dialog open={isCreateBudgetOpen} onOpenChange={setIsCreateBudgetOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Budget
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Project Budget</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateBudget} className="space-y-4">
                   <div>
-                    <Label htmlFor="startDate">Start Date</Label>
+                    <Label htmlFor="name">Budget Name</Label>
                     <Input
-                      id="startDate"
-                      name="startDate"
-                      type="date"
+                      id="name"
+                      name="name"
+                      placeholder="Enter budget name"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="endDate">End Date</Label>
-                    <Input
-                      id="endDate"
-                      name="endDate"
-                      type="date"
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      placeholder="Enter budget description"
+                      rows={3}
                     />
                   </div>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateBudgetOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createBudgetMutation.isPending}>
-                    {createBudgetMutation.isPending ? 'Creating...' : 'Create Budget'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div>
+                    <Label htmlFor="totalBudget">Total Budget</Label>
+                    <Input
+                      id="totalBudget"
+                      name="totalBudget"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Enter total budget"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select name="currency" defaultValue="USD">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input
+                        id="startDate"
+                        name="startDate"
+                        type="date"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input
+                        id="endDate"
+                        name="endDate"
+                        type="date"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateBudgetOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createBudgetMutation.isPending}>
+                      {createBudgetMutation.isPending ? 'Creating...' : 'Create Budget'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
     );

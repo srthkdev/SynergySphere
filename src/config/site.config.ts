@@ -1,6 +1,4 @@
-import { SiteConfig } from "@/types";
-
-export const siteConfig: SiteConfig = {
+export const siteConfig = {
   name: "SynergySphere",
   title: "SynergySphere - Advanced Team Collaboration Platform",
   description: "SynergySphere is an intelligent backbone for teams — helping them stay organized, communicate better, manage resources more effectively, and make informed decisions without friction.",

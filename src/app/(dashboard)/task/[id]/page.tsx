@@ -336,8 +336,33 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Check if current user is the task creator
-  const isTaskCreator = currentUser && task && currentUser.id === task.createdById;
+  // Check if current user can delete this task
+  // (project admin/owner, project creator, or task creator)
+  const canUserDeleteTask = async (): Promise<boolean> => {
+    if (!currentUser || !task) return false;
+    
+    try {
+      const response = await fetch(`/api/projects/${task.projectId}/tasks/${task.id}/permissions`);
+      if (response.ok) {
+        const { canDelete } = await response.json();
+        return canDelete;
+      }
+    } catch (error) {
+      console.error('Error checking delete permissions:', error);
+    }
+    
+    // Fallback to just checking if user is task creator
+    return currentUser.id === task.createdById;
+  };
+
+  const [canDeleteTask, setCanDeleteTask] = useState(false);
+
+  // Check permissions when component mounts or task changes
+  useEffect(() => {
+    if (task && currentUser) {
+      canUserDeleteTask().then(setCanDeleteTask);
+    }
+  }, [task, currentUser]);
 
   if (loading) {
     return (
@@ -382,7 +407,7 @@ export default function TaskDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{task.title}</h1>
         </div>
-        {isTaskCreator && (
+        {canDeleteTask && (
           <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:border-red-300">

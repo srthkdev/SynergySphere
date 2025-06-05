@@ -4,6 +4,7 @@ import { task, projectMember, taskStatusEnum, project } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getUser } from "@/lib/auth/auth-utils";
 import { createNotification } from "@/lib/notifications";
+import { canDeleteTask } from "@/lib/project-auth";
 
 // Helper function to check project membership
 async function verifyProjectMembership(projectId: string, userId: string) {
@@ -177,14 +178,13 @@ export async function DELETE(
 
     const { id: projectId, taskId } = await params;
 
-    // Check if the current user is a member of the project (at least member role)
-    const [member] = await db
-      .select()
-      .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
-
-    if (!member) {
-      return NextResponse.json({ error: "Forbidden: You are not a member of this project" }, { status: 403 });
+    // Check if the current user can delete this task
+    // (must be project admin/owner, project creator, or task creator)
+    const canDelete = await canDeleteTask(currentUser.id, taskId);
+    if (!canDelete) {
+      return NextResponse.json({ 
+        error: "Forbidden: You don't have permission to delete this task" 
+      }, { status: 403 });
     }
 
     // Check if task exists and belongs to the project

@@ -21,7 +21,7 @@ function isTaskCompleted(status: Task['status']): boolean {
  * Calculate urgency score based on due date
  * Returns a value between 0 and 1
  */
-function calculateUrgencyScore(dueDate: string | undefined): number {
+function calculateUrgencyScore(dueDate: string | null | undefined): number {
   if (!dueDate) return 0;
   
   const now = Date.now();

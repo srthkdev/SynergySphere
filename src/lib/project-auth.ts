@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { project, projectMember } from "@/lib/db/schema";
+import { project, projectMember, task } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 
@@ -17,9 +17,20 @@ export async function canAccessProject(userId: string, projectId: string): Promi
   }
 }
 
-// Check if user can modify a project (is an owner or admin)
+// Check if user can modify a project (is an owner, admin, or project creator)
 export async function canModifyProject(userId: string, projectId: string): Promise<boolean> {
   try {
+    // First check if user is the project creator
+    const [projectData] = await db
+      .select({ createdById: project.createdById })
+      .from(project)
+      .where(eq(project.id, projectId));
+    
+    if (projectData && projectData.createdById === userId) {
+      return true;
+    }
+
+    // Then check if user is owner or admin
     const [member] = await db
       .select()
       .from(projectMember)
@@ -84,5 +95,44 @@ export async function getProjectTasks(userId: string, projectId: string) {
   } catch (error) {
     console.error("Error fetching project tasks:", error);
     return null;
+  }
+}
+
+// Check if user can delete a task (project admin/owner, project creator, or task creator)
+export async function canDeleteTask(userId: string, taskId: string): Promise<boolean> {
+  try {
+    // Get the task and its project information
+    const [taskData] = await db
+      .select({
+        taskId: task.id,
+        taskCreatedById: task.createdById,
+        projectId: task.projectId,
+        projectCreatedById: project.createdById,
+      })
+      .from(task)
+      .innerJoin(project, eq(task.projectId, project.id))
+      .where(eq(task.id, taskId));
+
+    if (!taskData) return false;
+
+    // Check if user is the task creator
+    if (taskData.taskCreatedById === userId) return true;
+
+    // Check if user is the project creator
+    if (taskData.projectCreatedById === userId) return true;
+
+    // Check if user is project admin or owner
+    const [member] = await db
+      .select()
+      .from(projectMember)
+      .where(and(
+        eq(projectMember.projectId, taskData.projectId), 
+        eq(projectMember.userId, userId)
+      ));
+    
+    return !!member && (member.role === 'owner' || member.role === 'admin');
+  } catch (error) {
+    console.error("Error checking task deletion rights:", error);
+    return false;
   }
 } 
