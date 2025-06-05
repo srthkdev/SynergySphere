@@ -38,5 +38,55 @@
     "createdAt": "2025-06-05T03:09:03.428Z",
     "messageType": "text",
     "edited": false
+  },
+  {
+    "id": "1749121210468",
+    "taskId": "5437aae9-1098-48c9-a7dd-d6a229e7bf93",
+    "text": "hi sir",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T11:00:10.468Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749121233314",
+    "taskId": "5437aae9-1098-48c9-a7dd-d6a229e7bf93",
+    "text": "hey bro",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T11:00:33.314Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749122122390",
+    "taskId": "5437aae9-1098-48c9-a7dd-d6a229e7bf93",
+    "text": "hii",
+    "authorName": "Sarthak Jain",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Sarthak%20Jain&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T11:15:22.390Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749122145450",
+    "taskId": "5437aae9-1098-48c9-a7dd-d6a229e7bf93",
+    "text": "yess",
+    "authorName": "sarthak jain",
+    "authorAvatar": "https://ui-avatars.com/api/?name=sarthak%20jain&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T11:15:45.450Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749122261086",
+    "taskId": "5437aae9-1098-48c9-a7dd-d6a229e7bf93",
+    "text": "btw",
+    "authorName": "sarthak jain",
+    "authorAvatar": "https://ui-avatars.com/api/?name=sarthak%20jain&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T11:17:41.087Z",
+    "messageType": "text",
+    "edited": false
   }
 ]
