@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 
 const protectedRoutes = ["/dashboard", "/projects", "/tasks", "/my-tasks", "/analytics", "/settings", "/team", "/budgets", "/inbox", "/documents"];
 const authRoutes = ["/login", "/sign-up", "/sign-in", "/forgot-password", "/reset-password"];

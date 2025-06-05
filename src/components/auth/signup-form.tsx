@@ -10,10 +10,10 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { authClient } from "@/lib/auth-client"
+import { authClient } from "@/lib/auth/auth-client"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -30,6 +30,8 @@ type SignupFormData = z.infer<typeof signupSchema>
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
 
   const {
@@ -158,14 +160,30 @@ export default function SignUpForm() {
               <Label htmlFor="password" className="text-sm">
                 Password
               </Label>
-              <Input
-                type="password"
-                id="password"
-                placeholder="••••••••"
-                {...register("password")}
-                disabled={isLoading || googleLoading}
-                className={errors.password ? "border-red-500" : ""}
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  placeholder="••••••••"
+                  {...register("password")}
+                  disabled={isLoading || googleLoading}
+                  className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
               {errors.password && (
                 <p className="text-xs text-red-500">{errors.password.message}</p>
               )}
@@ -175,14 +193,30 @@ export default function SignUpForm() {
               <Label htmlFor="confirmPassword" className="text-sm">
                 Confirm Password
               </Label>
-              <Input
-                type="password"
-                id="confirmPassword"
-                placeholder="••••••••"
-                {...register("confirmPassword")}
-                disabled={isLoading || googleLoading}
-                className={errors.confirmPassword ? "border-red-500" : ""}
-              />
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  placeholder="••••••••"
+                  {...register("confirmPassword")}
+                  disabled={isLoading || googleLoading}
+                  className={errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
               {errors.confirmPassword && (
                 <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>
               )}

@@ -483,10 +483,12 @@ export default function MetricsPage() {
               <div className="grid grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-red-600 mb-2">{charts.priorityDistribution.high}</div>
-                  <div className="w-full bg-red-100 rounded-full h-2 mb-2">
+                  <div className="w-full bg-red-100 rounded-full h-2.5 mb-2 overflow-hidden">
                     <div 
-                      className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(charts.priorityDistribution.high / overview.totalTasks) * 100}%` }}
+                      className="bg-red-500 h-2.5 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min(100, Math.max(5, (charts.priorityDistribution.high / (charts.priorityDistribution.high + charts.priorityDistribution.medium + charts.priorityDistribution.low)) * 100))}%` 
+                      }}
                     ></div>
                   </div>
                   <p className="text-sm text-muted-foreground">High Priority</p>
@@ -497,10 +499,12 @@ export default function MetricsPage() {
                 
                 <div className="text-center">
                   <div className="text-3xl font-bold text-yellow-600 mb-2">{charts.priorityDistribution.medium}</div>
-                  <div className="w-full bg-yellow-100 rounded-full h-2 mb-2">
+                  <div className="w-full bg-yellow-100 rounded-full h-2.5 mb-2 overflow-hidden">
                     <div 
-                      className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(charts.priorityDistribution.medium / overview.totalTasks) * 100}%` }}
+                      className="bg-yellow-500 h-2.5 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min(100, Math.max(5, (charts.priorityDistribution.medium / (charts.priorityDistribution.high + charts.priorityDistribution.medium + charts.priorityDistribution.low)) * 100))}%` 
+                      }}
                     ></div>
                   </div>
                   <p className="text-sm text-muted-foreground">Medium Priority</p>
@@ -511,10 +515,12 @@ export default function MetricsPage() {
                 
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600 mb-2">{charts.priorityDistribution.low}</div>
-                  <div className="w-full bg-green-100 rounded-full h-2 mb-2">
+                  <div className="w-full bg-green-100 rounded-full h-2.5 mb-2 overflow-hidden">
                     <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(charts.priorityDistribution.low / overview.totalTasks) * 100}%` }}
+                      className="bg-green-500 h-2.5 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min(100, Math.max(5, (charts.priorityDistribution.low / (charts.priorityDistribution.high + charts.priorityDistribution.medium + charts.priorityDistribution.low)) * 100))}%` 
+                      }}
                     ></div>
                   </div>
                   <p className="text-sm text-muted-foreground">Low Priority</p>
