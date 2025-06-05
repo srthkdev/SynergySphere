@@ -154,7 +154,7 @@ export default function ProjectPage() {
       
       {/* Tab content */}
       <div className="min-h-[60vh]">
-        {activeTab === 'tasks' && <TasksTab projectId={projectId} />}
+        {activeTab === 'tasks' && <TasksTab projectId={projectId} projectName={project.name} />}
         {activeTab === 'members' && <MembersTab projectId={projectId} />}
         {activeTab === 'discussions' && <DiscussionsTab projectId={projectId} />}
         {activeTab === 'attachments' && <AttachmentsTab projectId={projectId} />}

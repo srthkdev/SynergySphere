@@ -47,6 +47,11 @@ const navMain = [
     icon: ListTodo,
   },
   {
+    title: "AI Assistant",
+    url: "/ai-assistant",
+    icon: Bot,
+  },
+  {
     title: "Inbox",
     url: "/inbox",
     icon: Inbox,
@@ -79,20 +84,6 @@ const navMain = [
     title: "Analytics",
     url: "/analytics",
     icon: PieChart,
-    items: [
-      {
-        title: "Reports",
-        url: "/analytics/reports",
-      },
-      {
-        title: "Insights",
-        url: "/analytics/insights",
-      },
-      {
-        title: "Metrics",
-        url: "/analytics/metrics",
-      },
-    ],
   },
   {
     title: "Settings",

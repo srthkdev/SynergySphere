@@ -7,11 +7,11 @@ import { eq, sum } from "drizzle-orm";
 // DELETE /api/budget-entries/[id] - Delete a budget entry
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return requireAuth(request, async (user: AuthenticatedUser) => {
     try {
-      const { id } = params;
+      const { id } = await params;
 
       // Get the budget entry to find its budget ID
       const entryResult = await db

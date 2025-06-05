@@ -20,6 +20,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -46,6 +47,7 @@ import {
   User,
   ArrowUp,
   ArrowDown,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth/auth-client';
@@ -545,32 +547,89 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                   Add Expense
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Add Expense</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleAddExpense} className="space-y-4">
-                  <div>
-                    <Label htmlFor="amount">Amount</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Expense Name</Label>
                     <Input
-                      id="amount"
-                      name="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Enter amount"
+                      id="name"
+                      name="name"
+                      placeholder="Enter expense name"
                       required
                     />
                   </div>
-                  <div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Budget Amount</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="amount"
+                        name="amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="pl-8"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input 
+                        id="startDate" 
+                        name="startDate"
+                        type="date" 
+                        placeholder="mm/dd/yyyy"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input 
+                        id="endDate" 
+                        name="endDate"
+                        type="date" 
+                        placeholder="mm/dd/yyyy"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Expense Image</Label>
+                    <div className="relative flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors cursor-pointer">
+                      <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Drag and drop or click to upload
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG or GIF (Max 2MB)
+                      </p>
+                      <Input
+                        type="file"
+                        name="image"
+                        className="hidden"
+                        accept="image/jpeg,image/png,image/gif"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
                       name="description"
-                      placeholder="Describe the expense"
+                      placeholder="Enter expense description"
+                      rows={3}
                       required
                     />
                   </div>
+                  
                   <div>
                     <Label htmlFor="category">Category</Label>
                     <Select name="category" defaultValue="general">
@@ -586,6 +645,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   <div>
                     <Label htmlFor="taskId">Related Task (Optional)</Label>
                     <Select name="taskId">
@@ -608,18 +668,20 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex justify-end space-x-2">
+                  
+                  <DialogFooter>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setIsAddExpenseOpen(false)}
+                      className="mt-2"
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={addExpenseMutation.isPending}>
+                    <Button type="submit" disabled={addExpenseMutation.isPending} className="mt-2">
                       {addExpenseMutation.isPending ? 'Adding...' : 'Add Expense'}
                     </Button>
-                  </div>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>

@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { ChatMessage, ProjectMember } from '@/types';
 import { useSession } from '@/lib/auth/auth-client';
-import { websocketClient } from '@/lib/websocket';
 import { fetchMessages, fetchProjectMembers, sendMessage } from '@/lib/queries';
 import { toast } from 'sonner';
 
@@ -40,93 +39,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const messageCache = useRef<Map<string, ChatMessage[]>>(new Map());
   const olderMessagesIdRef = useRef<string | null>(null);
 
-  // Connect to WebSocket when session changes
-  useEffect(() => {
-    if (session?.user?.id) {
-      // Set user ID first
-      websocketClient.setUserId(session.user.id);
-      
-      // Only connect if not already connected or connecting
-      // The WebSocketClient will handle connection state internally
-      websocketClient.connect();
-
-      // Track the WebSocket connection status
-      const unsubscribe = websocketClient.onStatusChange((status) => {
-        console.log('WebSocket status changed to:', status);
-        if (status === 'connected' && currentProjectId) {
-          joinRoom(currentProjectId, currentTaskId);
-        }
-      });
-
-      return () => {
-        unsubscribe();
-        // Don't disconnect on cleanup during development (hot reload)
-        // The WebSocket client singleton will handle disconnection when needed
-        console.log('ChatProvider cleanup - keeping WebSocket connection alive');
-      };
-    }
-  }, [session]);
-
-  // Subscribe to incoming messages
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    const handleNewMessage = (message: ChatMessage) => {
-      setMessages(prevMessages => {
-        // Check if the message already exists to avoid duplicates
-        if (prevMessages.some(m => m.id === message.id)) {
-          return prevMessages;
-        }
-        
-        // Update cache for the relevant room
-        const cacheKey = getCacheKey(message.projectId, message.taskId);
-        const cachedMessages = messageCache.current.get(cacheKey) || [];
-        messageCache.current.set(cacheKey, [...cachedMessages, message]);
-        
-        // Check if the message belongs to the current room
-        const isCurrentRoom = 
-          message.projectId === currentProjectId && 
-          (message.taskId === currentTaskId || (!message.taskId && !currentTaskId));
-        
-        // Update the messages state if it's for the current room
-        if (isCurrentRoom) {
-          // Sort by timestamp in ascending order
-          return [...prevMessages, message].sort((a, b) => 
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-        }
-        
-        // If it's a mention of current user, increment unread count
-        if (message.content.includes(`@${session.user.name}`) && message.authorId !== session.user.id) {
-          setUnreadCount(prev => prev + 1);
-        }
-        
-        return prevMessages;
-      });
-    };
-
-    const unsubscribe = websocketClient.onMessage(handleNewMessage);
-    return () => {
-      unsubscribe();
-    };
-  }, [session, currentProjectId, currentTaskId]);
-
   // Helper for constructing cache keys
   const getCacheKey = (projectId: string, taskId?: string | null): string => {
     return `${projectId}:${taskId || 'project-level'}`;
   };
-
-  // Join a chat room
-  const joinRoom = useCallback((projectId: string, taskId?: string | null) => {
-    const roomId = taskId ? `task:${taskId}` : `project:${projectId}`;
-    websocketClient.joinRoom(roomId);
-  }, []);
-
-  // Leave a chat room
-  const leaveRoom = useCallback((projectId: string, taskId?: string | null) => {
-    const roomId = taskId ? `task:${taskId}` : `project:${projectId}`;
-    websocketClient.leaveRoom(roomId);
-  }, []);
 
   // Join a specific chat room and load its messages
   const joinChatRoom = useCallback(async (projectId: string, taskId?: string | null) => {
@@ -157,9 +73,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         olderMessagesIdRef.current = roomMessages[0].id;
       }
       
-      // Join the WebSocket room
-      joinRoom(projectId, taskId);
-      
       // Load project members for @mentions
       const members = await fetchProjectMembers(projectId);
       setProjectMembers(members);
@@ -171,17 +84,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [session, joinRoom]);
+  }, [session]);
 
   // Leave the current chat room
   const leaveChatRoom = useCallback(() => {
     if (currentProjectId) {
-      leaveRoom(currentProjectId, currentTaskId);
       setCurrentProjectId(null);
       setCurrentTaskId(null);
       setMessages([]);
     }
-  }, [currentProjectId, currentTaskId, leaveRoom]);
+  }, [currentProjectId, currentTaskId]);
 
   // Load older messages for infinite scrolling
   const loadMoreMessages = useCallback(async () => {
