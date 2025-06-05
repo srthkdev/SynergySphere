@@ -30,12 +30,12 @@ const priorityOptions = [
 const taskFormSchema = z.object({
   projectId: z.string().min(1, "Project is required"),
   title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
-  description: z.string().default(""),
-  status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).default('TODO'),
-  dueDate: z.string().default(""),
-  assigneeId: z.string().nullable().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
-  attachmentUrl: z.string().optional().nullable(),
+  description: z.string(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']),
+  dueDate: z.string(),
+  assigneeId: z.string().nullable(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  attachmentUrl: z.string().nullable(),
 });
 
 // Create a type from our schema
@@ -73,7 +73,7 @@ export function CreateEditTaskDialog({
 
   const isEditing = !!taskToEdit;
 
-  const form = useForm({
+  const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: taskToEdit 
       ? { 
@@ -82,7 +82,7 @@ export function CreateEditTaskDialog({
           description: taskToEdit.description || "",
           status: taskToEdit.status,
           dueDate: taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().substring(0, 10) : "",
-          assigneeId: taskToEdit.assigneeId || null,
+          assigneeId: taskToEdit.assigneeId,
           priority: taskToEdit.priority || 'MEDIUM',
           attachmentUrl: taskToEdit.attachmentUrl || null,
         }
@@ -182,25 +182,23 @@ export function CreateEditTaskDialog({
         attachmentUrl = await uploadImage(imageFile);
       }
       
-      const apiData: any = {
+      const apiData = {
         projectId: taskData.projectId,
         title: taskData.title?.trim() === "" ? "Untitled Task" : taskData.title,
         description: taskData.description?.trim() === "" ? null : taskData.description,
         status: taskData.status,
-        dueDate: taskData.dueDate?.trim() === "" ? null : new Date(taskData.dueDate).toISOString(),
+        dueDate: taskData.dueDate?.trim() === "" ? null : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null),
         priority: taskData.priority,
         attachmentUrl: attachmentUrl,
+        assigneeId: taskData.assigneeId, // Simply pass through the assigneeId - it's already null if unassigned
       };
 
-      // Only include assigneeId if it's a valid value (not "unassigned" and not null)
-      if (taskData.assigneeId && taskData.assigneeId !== "unassigned") {
-        apiData.assigneeId = taskData.assigneeId;
-      }
+      console.log("Final API payload:", apiData);
 
       if (currentTask) {
         return updateTask(taskData.projectId, currentTask.id, apiData);
       }
-      return createTask(taskData.projectId, apiData as Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt' | 'createdById'>);
+      return createTask(taskData.projectId, apiData);
     },
     onSuccess: (savedTask: Task, variables) => {
       const finalProjectId = variables.taskData.projectId;
@@ -217,30 +215,17 @@ export function CreateEditTaskDialog({
     },
     onError: (error: Error) => {
       console.error("Task submission error:", error);
-      
-      // Handle foreign key constraint error specifically
-      if (error.message?.includes("foreign key constraint") && error.message?.includes("task_assignee_id_user_id_fk")) {
-        toast.error("The selected assignee's user ID is not valid. Please select another team member.");
-      } else {
-        toast.error(error.message || (taskToEdit ? "Failed to update task" : "Failed to create task"));
-      }
+      toast.error(error.message || (taskToEdit ? "Failed to update task" : "Failed to create task"));
     },
   });
 
-  const handleSubmit = form.handleSubmit((data: TaskFormValues) => {
-    // Clean up the assignee value
-    if (data.assigneeId === "unassigned") {
-      data.assigneeId = null;
-    }
-    
-    // Validate that the assignee is a valid project member
-    if (data.assigneeId && !validMemberIds.includes(data.assigneeId)) {
-      toast.error("The selected assignee is not a valid team member. Please select another assignee.");
-      return;
-    }
-    
-    manageTask({ taskData: data, currentTask: taskToEdit });
-  });
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    form.handleSubmit((data: TaskFormValues) => {
+      console.log("Form data before submission:", data);
+      manageTask({ taskData: data, currentTask: taskToEdit });
+    })(e);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen: boolean) => {
@@ -377,8 +362,13 @@ export function CreateEditTaskDialog({
                   control={form.control}
                   render={({ field }) => (
                     <Select 
-                      onValueChange={field.onChange}
-                      value={field.value || "unassigned"} 
+                      onValueChange={(value) => {
+                        // If unassigned is selected, set to null
+                        const assigneeId = value === "unassigned" ? null : value;
+                        field.onChange(assigneeId);
+                        console.log("Setting assigneeId to:", assigneeId);
+                      }}
+                      value={field.value === null ? "unassigned" : field.value}
                       disabled={isSubmittingTask || isLoadingMembers}
                     >
                       <SelectTrigger className="w-full">

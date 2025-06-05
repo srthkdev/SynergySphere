@@ -26,20 +26,20 @@ export const updateProjectSchema = z.object({
 // Task validation schemas
 export const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
-  description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
+  description: z.string().max(1000, "Description must be less than 1000 characters").nullable().optional(),
   projectId: z.string().uuid("Invalid project ID"),
   assigneeId: z.string().nullable().optional(), // Allow any string format for user IDs (Auth.js uses text IDs, not UUIDs)
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM"),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters").optional(),
-  description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
+  description: z.string().max(1000, "Description must be less than 1000 characters").nullable().optional(),
   status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
   assigneeId: z.string().nullable().optional(), // Allow any string format for user IDs (Auth.js uses text IDs, not UUIDs)
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().nullable().optional(),
 });
 
 // Comment validation schema

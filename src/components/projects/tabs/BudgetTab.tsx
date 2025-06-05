@@ -44,9 +44,12 @@ import {
   Target,
   Calendar,
   User,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth/auth-client';
+import { fetchTasksByProjectId } from '@/lib/queries';
 
 interface Budget {
   id: string;
@@ -125,6 +128,16 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       return response.json();
     },
     enabled: !!budget?.id,
+  });
+
+  // Fetch tasks for the project
+  const { 
+    data: projectTasks = [], 
+    isLoading: tasksLoading 
+  } = useQuery({
+    queryKey: ['projectTasks', projectId],
+    queryFn: () => fetchTasksByProjectId(projectId),
+    enabled: !!projectId,
   });
 
   // Create budget mutation
@@ -220,26 +233,22 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
     const amount = parseFloat(formData.get('amount') as string);
     const description = formData.get('description') as string;
     const category = formData.get('category') as string;
     const taskId = formData.get('taskId') as string;
-
-    if (amount <= 0) {
-      toast.error('Amount must be greater than 0');
+    
+    if (!budget) {
+      toast.error('Please create a budget first');
       return;
     }
-
-    if (!description.trim()) {
-      toast.error('Description is required');
-      return;
-    }
-
+    
     addExpenseMutation.mutate({
       amount,
-      description: description.trim(),
-      category,
-      taskId: taskId || undefined,
+      description,
+      category: category || 'general',
+      taskId: taskId || undefined
     });
   };
 
@@ -461,11 +470,25 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                   </div>
                   <div>
                     <Label htmlFor="taskId">Related Task (Optional)</Label>
-                    <Input
-                      id="taskId"
-                      name="taskId"
-                      placeholder="Task ID if related to specific task"
-                    />
+                    <Select name="taskId">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a task (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {tasksLoading ? (
+                          <SelectItem value="loading" disabled>Loading tasks...</SelectItem>
+                        ) : projectTasks.length === 0 ? (
+                          <SelectItem value="none" disabled>No tasks available</SelectItem>
+                        ) : (
+                          projectTasks.map((task) => (
+                            <SelectItem key={task.id} value={task.id}>
+                              {task.title}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button

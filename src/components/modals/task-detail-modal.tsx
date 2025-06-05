@@ -31,20 +31,20 @@ import { cn } from "@/lib/utils";
 interface Task {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   status: 'todo' | 'in-progress' | 'in-review' | 'completed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate?: string;
-  assignedBy: string;
-  assignedByAvatar: string;
-  tags: string[];
-  progress: number;
-  estimatedHours: number;
-  loggedHours: number;
-  project: string;
+  assignedBy?: string;
+  assignedByAvatar?: string;
+  tags?: string[];
+  progress?: number;
+  estimatedHours?: number;
+  loggedHours?: number;
+  project?: string;
   projectId: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Comment {
@@ -64,9 +64,10 @@ interface TaskDetailModalProps {
 }
 
 function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'urgent': return 'bg-red-500';
-    case 'high': return 'bg-orange-500';
+  const normalizedPriority = priority?.toLowerCase() || 'medium';
+  switch (normalizedPriority) {
+    case 'urgent':
+    case 'high': return 'bg-red-500';
     case 'medium': return 'bg-yellow-500';
     case 'low': return 'bg-green-500';
     default: return 'bg-gray-500';
@@ -210,7 +211,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onTaskUpdate }: TaskDet
           {activeTab === 'details' && (
             <div className="space-y-6">
               {/* Progress */}
-              {task.progress > 0 && (
+              {task.progress && task.progress > 0 && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">Progress</span>
@@ -231,10 +232,10 @@ export function TaskDetailModal({ task, isOpen, onClose, onTaskUpdate }: TaskDet
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={task.assignedByAvatar} />
                         <AvatarFallback className="text-xs">
-                          {task.assignedBy.split(' ').map(n => n[0]).join('')}
+                          {task.assignedBy ? task.assignedBy.split(' ').map(n => n[0]).join('') : 'U'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm">{task.assignedBy}</span>
+                      <span className="text-sm">{task.assignedBy || 'Unassigned'}</span>
                     </div>
                   </div>
 
@@ -242,7 +243,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onTaskUpdate }: TaskDet
                   <div className="flex items-center space-x-2">
                     <FolderOpen className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Project:</span>
-                    <span className="text-sm">{task.project}</span>
+                    <span className="text-sm">{task.project || 'No project'}</span>
                   </div>
 
                   {/* Due Date */}
@@ -266,20 +267,20 @@ export function TaskDetailModal({ task, isOpen, onClose, onTaskUpdate }: TaskDet
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Time:</span>
                     <span className="text-sm">
-                      {task.loggedHours}h / {task.estimatedHours}h logged
+                      {task.loggedHours || 0}h / {task.estimatedHours || 0}h logged
                     </span>
                   </div>
 
                   {/* Created/Updated */}
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    <div>Created: {new Date(task.createdAt).toLocaleString()}</div>
-                    <div>Updated: {new Date(task.updatedAt).toLocaleString()}</div>
+                    <div>Created: {task.createdAt ? new Date(task.createdAt).toLocaleString() : 'Unknown'}</div>
+                    <div>Updated: {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : 'Unknown'}</div>
                   </div>
                 </div>
               </div>
 
               {/* Tags */}
-              {task.tags.length > 0 && (
+              {task.tags && task.tags.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <Tag className="h-4 w-4 text-muted-foreground" />
@@ -313,7 +314,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onTaskUpdate }: TaskDet
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={comment.authorAvatar} />
                         <AvatarFallback className="text-xs">
-                          {comment.authorName.split(' ').map(n => n[0]).join('')}
+                          {comment.authorName ? comment.authorName.split(' ').map(n => n[0]).join('') : 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-1">

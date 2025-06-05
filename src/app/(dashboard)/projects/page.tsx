@@ -53,41 +53,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 // Import the new view components
 import { ViewSwitcher, ViewMode } from "@/components/ui/view-switcher"
 import { GalleryView } from "@/components/views/gallery-view"
 import { ListView } from "@/components/views/list-view"
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  status: 'planning' | 'active' | 'on-hold' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  createdAt: string;
-  updatedAt: string;
-  role: string; // user's role in the project
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  dueDate?: string;
-  assignedBy: string;
-  assignedByAvatar: string;
-  tags: string[];
-  progress: number;
-  estimatedHours: number;
-  loggedHours: number;
-  project: string;
-  projectId: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Project, Task } from "@/types"
 
 const projectStats = [
   {
@@ -149,10 +122,11 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTab, setSelectedTab] = useState('all');
+  const [selectedTab, setSelectedTab] = useState<'all' | 'active' | 'completed' | 'planning'>('all');
   const [currentView, setCurrentView] = useState<ViewMode>('gallery');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const router = useRouter();
 
   // Fetch projects from API
   useEffect(() => {
@@ -230,6 +204,35 @@ export default function ProjectsPage() {
 
   const handleItemUpdate = (itemId: string, updates: any) => {
     handleProjectUpdate(itemId, updates);
+  };
+
+  const handleProjectEdit = (item: Project | Task) => {
+    if ('name' in item) { // Check if it's a Project
+      router.push(`/projects/edit/${item.id}`);
+    }
+  };
+
+  const handleProjectDelete = async (item: Project | Task) => {
+    if ('name' in item) { // Check if it's a Project
+      const project = item as Project;
+      if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
+        try {
+          const response = await fetch(`/api/projects/${project.id}`, {
+            method: 'DELETE',
+          });
+
+          if (response.ok) {
+            setProjects(projects.filter(p => p.id !== project.id));
+            toast.success('Project deleted successfully');
+          } else {
+            throw new Error('Failed to delete project');
+          }
+        } catch (error) {
+          console.error('Error deleting project:', error);
+          toast.error('Failed to delete project');
+        }
+      }
+    }
   };
 
   if (loading) {
@@ -320,13 +323,13 @@ export default function ProjectsPage() {
         ))}
       </div>
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+      <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as 'all' | 'active' | 'completed' | 'planning')} className="space-y-4">
         <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="all">All Projects</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="planning">Planning</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all" onClick={() => setSelectedTab('all')}>All</TabsTrigger>
+            <TabsTrigger value="active" onClick={() => setSelectedTab('active')}>Active</TabsTrigger>
+            <TabsTrigger value="completed" onClick={() => setSelectedTab('completed')}>Completed</TabsTrigger>
+            <TabsTrigger value="planning" onClick={() => setSelectedTab('planning')}>Planning</TabsTrigger>
           </TabsList>
           
           <div className="flex items-center space-x-4">
@@ -370,20 +373,24 @@ export default function ProjectsPage() {
           ) : (
             <div>
               {currentView === 'gallery' && (
-                <GalleryView 
+                <GalleryView
                   items={filteredProjects}
                   type="projects"
-                  onItemUpdate={handleItemUpdate}
+                  onItemUpdate={handleProjectUpdate}
                   onItemClick={handleProjectClick}
+                  onEdit={handleProjectEdit}
+                  onDelete={handleProjectDelete}
                 />
               )}
               
               {currentView === 'list' && (
-                <ListView 
+                <ListView
                   items={filteredProjects}
                   type="projects"
-                  onItemUpdate={handleItemUpdate}
+                  onItemUpdate={handleProjectUpdate}
                   onItemClick={handleProjectClick}
+                  onEdit={handleProjectEdit}
+                  onDelete={handleProjectDelete}
                 />
               )}
             </div>

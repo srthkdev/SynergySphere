@@ -47,35 +47,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from 'next/navigation';
+import { Project as ProjectType, Task } from '@/types';
 
 // Import the new view components
 import { ViewSwitcher, ViewMode } from '@/components/ui/view-switcher';
 import { KanbanView } from '@/components/views/kanban-view';
 import { GalleryView } from '@/components/views/gallery-view';
 import { ListView } from '@/components/views/list-view';
-import { TaskDetailModal } from "@/components/modals/task-detail-modal"
 import { CreateEditTaskDialog } from "@/components/projects/task/CreateEditTaskDialog"
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  dueDate?: string;
-  assignedBy: string;
-  assignedByAvatar: string;
-  tags: string[];
-  progress: number;
-  estimatedHours: number;
-  loggedHours: number;
-  project: string;
-  projectId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Project {
+interface LocalProject {
   id: string;
   name: string;
   description: string;
@@ -114,9 +95,10 @@ const taskStats = [
 ];
 
 function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'urgent': return 'bg-red-500';
-    case 'high': return 'bg-orange-500';
+  const normalizedPriority = priority?.toLowerCase() || 'medium';
+  switch (normalizedPriority) {
+    case 'urgent':
+    case 'high': return 'bg-red-500';
     case 'medium': return 'bg-yellow-500';
     case 'low': return 'bg-green-500';
     default: return 'bg-gray-500';
@@ -127,7 +109,6 @@ function getStatusColor(status: string) {
   switch (status) {
     case 'completed': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300';
     case 'in-progress': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300';
-    case 'in-review': return 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300';
     case 'todo': return 'bg-gray-100 dark:bg-gray-800/20 text-gray-800 dark:text-gray-300';
     default: return 'bg-gray-100 dark:bg-gray-800/20 text-gray-800 dark:text-gray-300';
   }
@@ -161,28 +142,28 @@ export default function MyTasksPage() {
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('all'); // For priority filter dropdown
   const [showFilters, setShowFilters] = useState(false); // To toggle filter panel
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
 
+  
   // Fetch tasks from API
   useEffect(() => {
-    async function fetchTasks() {
-      try {
-        const response = await fetch('/api/tasks');
-        if (!response.ok) {
-          throw new Error('Failed to fetch tasks');
-        }
-        const data = await response.json();
-        setTasks(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchTasks();
   }, []);
+
+  async function fetchTasks() {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/tasks');
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
+      }
+      const data = await response.json();
+      setTasks(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Calculate task statistics
   const totalTasks = tasks.length;
@@ -211,7 +192,7 @@ export default function MyTasksPage() {
     let matchesTab = false;
     switch (selectedTab) {
       case 'active':
-        matchesTab = ['todo', 'in-progress', 'in-review'].includes(task.status);
+        matchesTab = ['todo', 'in-progress'].includes(task.status);
         break;
       case 'completed':
         matchesTab = task.status === 'completed';
@@ -313,9 +294,8 @@ export default function MyTasksPage() {
     }
   };
 
-  // Handle task click
-  const handleTaskClick = (item: Task | Project) => {
-    const task = item as Task;
+  // Handle task click - navigate to task detail page
+  const handleTaskClick = (task: any) => {
     router.push(`/task/${task.id}`);
   };
 
@@ -325,31 +305,8 @@ export default function MyTasksPage() {
     return handleTaskUpdate(itemId, updates);
   };
 
-  // Handle detailed task creation from modal
-  const handleDetailedTaskCreate = async (newTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'assignedByAvatar'>) => {
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newTaskData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create task');
-      }
-
-      const createdTask = await response.json();
-      setTasks([...tasks, createdTask]);
-      setIsCreateTaskModalOpen(false); // Close modal on success
-    } catch (err) {
-      console.error('Error creating detailed task:', err);
-      // TODO: Show error to user in the modal
-      alert(`Error creating task: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
+  // Get current user ID for task edit permissions (replace with your actual auth method)
+  const currentUserId = ''; // This should come from your authentication context
 
   if (loading) {
     return (
@@ -493,6 +450,7 @@ export default function MyTasksPage() {
                   type="tasks"
                   onItemUpdate={handleItemUpdate}
                   onItemClick={handleTaskClick}
+                  currentUserId={currentUserId}
                 />
               )}
               
@@ -515,18 +473,6 @@ export default function MyTasksPage() {
         onOpenChange={(open) => {
           setIsCreateTaskModalOpen(open);
           if (!open) {
-            // Refresh tasks when dialog closes
-            const fetchTasks = async () => {
-              try {
-                const response = await fetch('/api/tasks');
-                if (response.ok) {
-                  const data = await response.json();
-                  setTasks(data);
-                }
-              } catch (error) {
-                console.error('Failed to refresh tasks:', error);
-              }
-            };
             fetchTasks();
           }
         }}
@@ -534,18 +480,6 @@ export default function MyTasksPage() {
         taskToEdit={null}
       />
 
-      {/* Task Detail Modal */}
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          isOpen={isTaskDetailModalOpen}
-          onClose={() => {
-            setIsTaskDetailModalOpen(false);
-            setSelectedTask(null);
-          }}
-          onTaskUpdate={handleTaskUpdate}
-        />
-      )}
     </div>
   )
 } 

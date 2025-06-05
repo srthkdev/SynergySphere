@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projectMember, user } from "@/lib/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, inArray } from "drizzle-orm";
 import { getUser } from "@/lib/auth/auth-utils";
 
-// Helper to check if current user is an admin of the project
-async function isProjectAdmin(projectId: string, userId: string): Promise<boolean> {
+// Helper to check if current user is an admin or owner of the project
+async function isProjectAdminOrOwner(projectId: string, userId: string): Promise<boolean> {
   const [member] = await db
     .select()
     .from(projectMember)
-    .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId), eq(projectMember.role, 'admin')));
+    .where(and(
+      eq(projectMember.projectId, projectId), 
+      eq(projectMember.userId, userId), 
+      inArray(projectMember.role, ['admin', 'owner'])
+    ));
   return !!member;
 }
 
@@ -27,21 +31,21 @@ export async function DELETE(
 
     const { id: projectId, memberId } = await params;
 
-    // Only project admins can remove members, OR a user can remove themselves
-    const isAdmin = await isProjectAdmin(projectId, currentUser.id);
+    // Only project admins and owners can remove members, OR a user can remove themselves
+    const isAdminOrOwner = await isProjectAdminOrOwner(projectId, currentUser.id);
     
-    if (!isAdmin && currentUser.id !== memberId) {
-        return NextResponse.json({ error: "Forbidden: Only admins can remove other members, or you can remove yourself." }, { status: 403 });
+    if (!isAdminOrOwner && currentUser.id !== memberId) {
+        return NextResponse.json({ error: "Forbidden: Only admins/owners can remove other members, or you can remove yourself." }, { status: 403 });
     }
 
-    // Prevent admin from removing the last admin if they are that admin
-    if (isAdmin && currentUser.id === memberId) {
+    // Prevent admin/owner from removing the last admin if they are that admin
+    if (isAdminOrOwner && currentUser.id === memberId) {
         const adminCountResult = await db.select({ count: sql<number>`count(*)::int` }).from(projectMember)
-            .where(and(eq(projectMember.projectId, projectId), eq(projectMember.role, 'admin')));
+            .where(and(eq(projectMember.projectId, projectId), inArray(projectMember.role, ['admin', 'owner'])));
         const adminCount = adminCountResult[0]?.count || 0;
 
         if (adminCount <= 1) {
-            return NextResponse.json({ error: "Cannot remove the last admin of the project." }, { status: 400 });
+            return NextResponse.json({ error: "Cannot remove the last admin/owner of the project." }, { status: 400 });
         }
     }
 
@@ -80,21 +84,21 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid role specified. Must be 'admin' or 'member'." }, { status: 400 });
     }
 
-    // Only project admins can change roles
-    if (!await isProjectAdmin(projectId, currentUser.id)) {
-      return NextResponse.json({ error: "Forbidden: Only admins can change member roles" }, { status: 403 });
+    // Only project admins and owners can change roles
+    if (!await isProjectAdminOrOwner(projectId, currentUser.id)) {
+      return NextResponse.json({ error: "Forbidden: Only admins and owners can change member roles" }, { status: 403 });
     }
     
-    // Prevent changing own role if last admin to a non-admin role
+    // Prevent changing own role if last admin/owner to a non-admin role
     if (currentUser.id === memberId && role !== 'admin') {
         const adminCountResult = await db.select({ count: sql<number>`count(*)::int` }).from(projectMember)
-            .where(and(eq(projectMember.projectId, projectId), eq(projectMember.role, 'admin')));
+            .where(and(eq(projectMember.projectId, projectId), inArray(projectMember.role, ['admin', 'owner'])));
         const adminCount = adminCountResult[0]?.count || 0;
 
         const [currentMember] = await db.select().from(projectMember).where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id)));
 
-        if (currentMember?.role === 'admin' && adminCount <= 1) {
-            return NextResponse.json({ error: "Cannot change the role of the last admin to non-admin." }, { status: 400 });
+        if ((currentMember?.role === 'admin' || currentMember?.role === 'owner') && adminCount <= 1) {
+            return NextResponse.json({ error: "Cannot change the role of the last admin/owner to non-admin." }, { status: 400 });
         }
     }
 

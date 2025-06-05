@@ -1,6 +1,7 @@
 import { ThemeProvider } from "@/components/theme/provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers as QueryProviders } from "./query-provider"; // Use relative path
+import { ChatProvider } from "@/components/chat/ChatProvider";
 
 export default function RootProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -11,8 +12,10 @@ export default function RootProviders({ children }: { children: React.ReactNode 
       disableTransitionOnChange
     >
       <QueryProviders>
-        <Toaster position="top-right" />
-        {children}
+        <ChatProvider>
+          <Toaster position="top-right" />
+          {children}
+        </ChatProvider>
       </QueryProviders>
     </ThemeProvider>
   );

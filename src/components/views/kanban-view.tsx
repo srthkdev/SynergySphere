@@ -19,12 +19,13 @@ import {
   Square
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
 
 interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
+  status: 'todo' | 'in-progress' | 'completed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate?: string;
   assignedBy: string;
@@ -37,6 +38,7 @@ interface Task {
   projectId: string;
   createdAt: string;
   updatedAt: string;
+  createdById?: string;
 }
 
 interface KanbanViewProps {
@@ -65,14 +67,6 @@ const columns = [
     iconColor: 'text-blue-600 dark:text-blue-400'
   },
   {
-    id: 'in-review',
-    title: 'In Review',
-    status: 'in-review' as const,
-    color: 'bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/30',
-    icon: AlertTriangle,
-    iconColor: 'text-purple-600 dark:text-purple-400'
-  },
-  {
     id: 'completed',
     title: 'Completed',
     status: 'completed' as const,
@@ -83,9 +77,10 @@ const columns = [
 ];
 
 function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'urgent': return 'bg-red-500';
-    case 'high': return 'bg-orange-500';
+  const normalizedPriority = priority?.toLowerCase() || 'medium';
+  switch (normalizedPriority) {
+    case 'urgent':
+    case 'high': return 'bg-red-500';
     case 'medium': return 'bg-yellow-500';
     case 'low': return 'bg-green-500';
     default: return 'bg-gray-500';
@@ -96,7 +91,11 @@ function isOverdue(dueDate: string, status: string) {
   return new Date(dueDate) < new Date() && status !== "completed";
 }
 
-function TaskCard({ task, onUpdate, onTaskClick }: { task: Task; onUpdate?: (updates: Partial<Task>) => void; onTaskClick?: (task: Task) => void }) {
+function TaskCard({ task, onUpdate, onTaskClick }: { 
+  task: Task; 
+  onUpdate?: (updates: Partial<Task>) => void;
+  onTaskClick?: (task: Task) => void;
+}) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -134,9 +133,15 @@ function TaskCard({ task, onUpdate, onTaskClick }: { task: Task; onUpdate?: (upd
           </CardTitle>
           <div className="flex items-center space-x-1">
             <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <MoreHorizontal className="h-3 w-3" />
-            </Button>
+            {task.createdById && (
+              <EditTaskButton 
+                task={task} 
+                icon={<MoreHorizontal className="h-3 w-3" />}
+                size="sm"
+                className="h-6 w-6 p-0"
+                iconOnly
+              />
+            )}
           </div>
         </div>
         {task.description && (
@@ -244,61 +249,42 @@ function KanbanColumn({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className={cn("rounded-lg p-3 mb-4", column.color)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Icon className={cn("h-4 w-4", column.iconColor)} />
-            <h3 className="font-medium text-sm text-foreground">{column.title}</h3>
-            <Badge variant="secondary" className="text-xs">
-              {tasks.length}
-            </Badge>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-6 w-6 p-0 hover:bg-background/50"
-            onClick={() => onTaskCreate?.(column.status)}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
+    <div className={cn("flex flex-col h-full rounded-lg p-3", column.color)}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-2">
+          <Icon className={cn("h-4 w-4", column.iconColor)} />
+          <h3 className="text-sm font-medium">{column.title}</h3>
+          <Badge variant="outline" className="text-xs">
+            {tasks.length}
+          </Badge>
         </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-7 w-7 p-0" 
+          onClick={() => onTaskCreate?.(column.status)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
-
+      
       <div 
         className={cn(
-          "flex-1 space-y-3 p-2 rounded-lg border-2 border-dashed transition-colors",
-          isDragOver 
-            ? "border-primary bg-primary/5 dark:bg-primary/10" 
-            : "border-transparent hover:border-muted-foreground/20"
+          "flex-1 overflow-y-auto space-y-3 min-h-[300px] pb-2",
+          isDragOver && "bg-muted/50 rounded-md"
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {tasks.map((task) => (
-          <TaskCard 
-            key={task.id} 
-            task={task} 
+          <TaskCard
+            key={task.id}
+            task={task}
             onUpdate={(updates) => onTaskUpdate?.(task.id, updates)}
             onTaskClick={onTaskClick}
           />
         ))}
-        
-        {tasks.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <div className="text-sm">No tasks</div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="mt-2 hover:bg-background/50"
-              onClick={() => onTaskCreate?.(column.status)}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add task
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -306,23 +292,21 @@ function KanbanColumn({
 
 export function KanbanView({ tasks, onTaskUpdate, onTaskCreate, onTaskClick, className }: KanbanViewProps) {
   return (
-    <div className={cn("h-full", className)}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-full">
-        {columns.map((column) => {
-          const columnTasks = tasks.filter(task => task.status === column.status);
-          
-          return (
-            <KanbanColumn
-              key={column.id}
-              column={column}
-              tasks={columnTasks}
-              onTaskUpdate={onTaskUpdate}
-              onTaskCreate={onTaskCreate}
-              onTaskClick={onTaskClick}
-            />
-          );
-        })}
-      </div>
+    <div className={cn("grid grid-cols-1 md:grid-cols-3 gap-4 h-full", className)}>
+      {columns.map((column) => {
+        const filteredTasks = tasks.filter(task => task.status === column.status);
+        
+        return (
+          <KanbanColumn
+            key={column.id}
+            column={column}
+            tasks={filteredTasks}
+            onTaskUpdate={onTaskUpdate}
+            onTaskCreate={onTaskCreate}
+            onTaskClick={onTaskClick}
+          />
+        );
+      })}
     </div>
   );
 } 

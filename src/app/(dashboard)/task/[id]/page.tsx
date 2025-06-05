@@ -26,25 +26,8 @@ import {
   Paperclip,
   MoreHorizontal
 } from 'lucide-react';
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'done';
-  priority: 'low' | 'medium' | 'high';
-  dueDate: string;
-  assignedBy: string;
-  assignedByAvatar: string;
-  tags: string[];
-  progress: number;
-  estimatedHours: number;
-  loggedHours: number;
-  project: string;
-  projectId: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Task, ProjectMember } from "@/types";
+import { fetchProjectMembers } from '@/lib/queries';
 
 interface Comment {
   id: string;
@@ -62,6 +45,8 @@ export default function TaskDetailPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   const [task, setTask] = useState<Task | null>(null);
+  const [assignee, setAssignee] = useState<ProjectMember | null>(null);
+  const [isLoadingAssignee, setIsLoadingAssignee] = useState<boolean>(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,19 +54,42 @@ export default function TaskDetailPage() {
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
-    const fetchTask = async () => {
+    const fetchTaskAndAssignee = async () => {
       try {
-        const response = await fetch(`/api/tasks/${taskId}`);
-        if (response.ok) {
-          const taskData = await response.json();
-          setTask(taskData);
+        setLoading(true);
+        const taskResponse = await fetch(`/api/tasks/${taskId}`);
+        if (!taskResponse.ok) {
+          throw new Error('Failed to fetch task');
         }
+        const taskData: Task = await taskResponse.json();
+        setTask(taskData);
+
+        if (taskData.assigneeId && taskData.projectId) {
+          setIsLoadingAssignee(true);
+          try {
+            const members = await fetchProjectMembers(taskData.projectId);
+            const foundAssignee = members.find(member => member.userId === taskData.assigneeId);
+            setAssignee(foundAssignee || null);
+          } catch (assigneeError) {
+            console.error('Error fetching assignee:', assigneeError);
+            setAssignee(null); // Clear assignee if fetch fails
+          } finally {
+            setIsLoadingAssignee(false);
+          }
+        } else {
+          setAssignee(null); // No assigneeId or projectId
+          setIsLoadingAssignee(false);
+        }
+
       } catch (error) {
-        console.error('Error fetching task:', error);
+        console.error('Error fetching task details:', error);
+        setTask(null); // Clear task on error
+      } finally {
+        // setLoading(false); // Moved this setLoading to the combined promise below
       }
     };
 
-    const fetchComments = async () => {
+    const fetchTaskComments = async () => {
       try {
         const response = await fetch(`/api/tasks/${taskId}/comments`);
         if (response.ok) {
@@ -94,8 +102,9 @@ export default function TaskDetailPage() {
     };
 
     if (taskId) {
-      Promise.all([fetchTask(), fetchComments()]).finally(() => {
-        setLoading(false);
+      // Promise.all([fetchTask(), fetchComments()]).finally(() => { // Original
+      Promise.all([fetchTaskAndAssignee(), fetchTaskComments()]).finally(() => {
+        setLoading(false); // Combined loading state
       });
     }
   }, [taskId]);
@@ -164,34 +173,34 @@ export default function TaskDetailPage() {
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
+    switch (priority.toUpperCase()) {
+      case 'HIGH': return 'bg-red-100 text-red-800 border-red-200';
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'LOW': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'done': return 'bg-green-100 text-green-800 border-green-200';
-      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'todo': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'DONE': return 'bg-green-100 text-green-800 border-green-200';
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'TODO': return 'bg-gray-100 text-gray-800 border-gray-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'done': return <CheckCircle2 className="h-4 w-4" />;
-      case 'in-progress': return <Timer className="h-4 w-4" />;
-      case 'todo': return <Circle className="h-4 w-4" />;
+      case 'DONE': return <CheckCircle2 className="h-4 w-4" />;
+      case 'IN_PROGRESS': return <Timer className="h-4 w-4" />;
+      case 'TODO': return <Circle className="h-4 w-4" />;
       default: return <Circle className="h-4 w-4" />;
     }
   };
 
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date() && task?.status !== 'done';
+  const isOverdue = (dueDate: string | null | undefined) => {
+    return dueDate && new Date(dueDate) < new Date() && task?.status !== 'DONE';
   };
 
   if (loading) {
@@ -236,7 +245,6 @@ export default function TaskDetailPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{task.title}</h1>
-          <p className="text-muted-foreground">{task.project}</p>
         </div>
       </div>
 
@@ -268,23 +276,22 @@ export default function TaskDetailPage() {
                 <CardHeader>
                   <CardTitle>Progress</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Completion</span>
-                      <span>{task.progress}%</span>
+                      <span>Status: {task.status}</span>
                     </div>
-                    <Progress value={task.progress} className="w-full" />
-                    
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>Est: {task.estimatedHours}h</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Timer className="h-4 w-4 text-muted-foreground" />
-                        <span>Logged: {task.loggedHours}h</span>
-                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">Estimated Hours</p>
+                      <p className="font-medium">Not tracked</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">Logged Hours</p>
+                      <p className="font-medium">Not tracked</p>
                     </div>
                   </div>
                 </CardContent>
@@ -296,11 +303,7 @@ export default function TaskDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {task.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
+                    <p className="text-sm text-muted-foreground">No tags assigned</p>
                   </div>
                 </CardContent>
               </Card>
@@ -315,25 +318,6 @@ export default function TaskDetailPage() {
                       <MessageSquare className="h-5 w-5" />
                       Team Chatter
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-2">
-                        {/* Show active team members */}
-                        <Avatar className="h-6 w-6 border-2 border-white">
-                          <AvatarImage src="https://ui-avatars.com/api/?name=John+Doe&background=3b82f6" />
-                          <AvatarFallback className="text-xs">JD</AvatarFallback>
-                        </Avatar>
-                        <Avatar className="h-6 w-6 border-2 border-white">
-                          <AvatarImage src="https://ui-avatars.com/api/?name=Jane+Smith&background=10b981" />
-                          <AvatarFallback className="text-xs">JS</AvatarFallback>
-                        </Avatar>
-                        <div className="h-6 w-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                          <span className="text-xs text-gray-600">+2</span>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <MoreHorizontal className="h-3 w-3" />
-                      </Button>
-                    </div>
                   </div>
                 </CardHeader>
                 
@@ -422,12 +406,6 @@ export default function TaskDetailPage() {
                         className="resize-none min-h-[40px] max-h-[120px] pr-20"
                       />
                       <div className="absolute right-2 top-2 flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Smile className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Paperclip className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                     <Button 
@@ -465,8 +443,8 @@ export default function TaskDetailPage() {
 
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Priority</span>
-                <Badge className={getPriorityColor(task.priority)}>
-                  <span className="capitalize">{task.priority}</span>
+                <Badge className={getPriorityColor(task.priority || 'MEDIUM')}>
+                  <span className="capitalize">{task.priority?.toLowerCase() || 'medium'}</span>
                 </Badge>
               </div>
 
@@ -477,9 +455,9 @@ export default function TaskDetailPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">Due Date</p>
-                    <p className={`text-sm ${isOverdue(task.dueDate) ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {new Date(task.dueDate).toLocaleDateString()}
-                      {isOverdue(task.dueDate) && (
+                    <p className={`text-sm ${task.dueDate && isOverdue(task.dueDate) ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date set'}
+                      {task.dueDate && isOverdue(task.dueDate) && (
                         <span className="ml-1 text-red-600">(Overdue)</span>
                       )}
                     </p>
@@ -489,15 +467,25 @@ export default function TaskDetailPage() {
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Assigned By</p>
+                    <p className="text-sm font-medium">Assigned To</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={task.assignedByAvatar} />
-                        <AvatarFallback>
-                          {task.assignedBy.split(' ').map(n => n[0]).join('')}
+                        <AvatarImage src={assignee?.image || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {isLoadingAssignee
+                            ? '...'
+                            : assignee
+                            ? (assignee.name || assignee.email || 'N/A').substring(0, 2).toUpperCase()
+                            : 'UN'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm text-muted-foreground">{task.assignedBy}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {isLoadingAssignee
+                          ? 'Loading...'
+                          : assignee
+                          ? assignee.name || assignee.email || 'Unknown Assignee'
+                          : 'Unassigned'}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { project, projectMember } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 
 // Check if user can access a project (is a member)
@@ -49,6 +49,11 @@ export async function getUserProjects(userId: string) {
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         role: projectMember.role,
+        memberCount: sql<number>`(
+          SELECT COUNT(*)::int 
+          FROM ${projectMember} pm 
+          WHERE pm.project_id = ${project.id}
+        )`.as('memberCount'),
       })
       .from(projectMember)
       .innerJoin(project, eq(projectMember.projectId, project.id))

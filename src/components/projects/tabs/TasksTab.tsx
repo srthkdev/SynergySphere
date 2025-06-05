@@ -43,8 +43,8 @@ interface FrontendTask {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'todo' | 'in-progress' | 'completed';
+  priority: 'low' | 'medium' | 'high';
   dueDate?: string;
   assignedBy: string;
   assignedByAvatar: string;
@@ -56,6 +56,7 @@ interface FrontendTask {
   projectId: string;
   createdAt: string;
   updatedAt: string;
+  createdById: string;
 }
 
 // Task status options with badge colors
@@ -77,7 +78,7 @@ interface OptimisticTaskContext {
 }
 
 // Convert backend task format to frontend format
-const convertTaskFormat = (backendTask: BackendTask): FrontendTask => {
+const convertTaskFormat = (backendTask: BackendTask, userId?: string): FrontendTask => {
   return {
     id: backendTask.id,
     title: backendTask.title,
@@ -98,7 +99,8 @@ const convertTaskFormat = (backendTask: BackendTask): FrontendTask => {
     project: 'Current Project',
     projectId: backendTask.projectId,
     createdAt: backendTask.createdAt,
-    updatedAt: backendTask.updatedAt
+    updatedAt: backendTask.updatedAt,
+    createdById: backendTask.createdById || userId || 'unknown'
   };
 };
 
@@ -122,7 +124,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
   });
 
   // Convert backend tasks to frontend format
-  const tasks = backendTasks.map(convertTaskFormat);
+  const tasks = backendTasks.map(task => convertTaskFormat(task, currentUserId));
 
   // Fetch project members to display assignee info and get current user's role
   const { data: members = [] } = useQuery<ProjectMember[], Error>({
@@ -131,17 +133,17 @@ export function TasksTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
-  // Create a lookup map for member data
+  // Create a lookup map for member data by userId
   const memberMap = members.reduce((map, member) => {
-    map[member.id] = member;
+    map[member.userId] = member;
     return map;
   }, {} as Record<string, ProjectMember>);
   
-  // Check if current user is an admin
-  const isAdmin = currentUserId ? memberMap[currentUserId]?.role === 'admin' : false;
+  // Check if current user is an admin or owner
+  const isAdminOrOwner = currentUserId ? (memberMap[currentUserId]?.role === 'admin' || memberMap[currentUserId]?.role === 'owner') : false;
   
-  // Check if current user is a member or admin
-  const canCreateTasks = currentUserId ? memberMap[currentUserId]?.role === 'admin' || memberMap[currentUserId]?.role === 'member' : false;
+  // Check if current user can create tasks (admin, owner, or member)
+  const canCreateTasks = currentUserId ? ['admin', 'owner', 'member'].includes(memberMap[currentUserId]?.role) : false;
 
   // Check if task is assigned to current user
   const isTaskAssignee = (task: FrontendTask) => {
@@ -352,14 +354,20 @@ export function TasksTab({ projectId }: { projectId: string }) {
             {currentView === 'kanban' && (
               <KanbanView 
                 tasks={filteredTasks}
-                onTaskUpdate={handleTaskUpdate}
-                onTaskClick={handleTaskClick}
+                onTaskUpdate={(taskId: string, updates: any) => handleTaskUpdate(taskId, updates)}
+                onTaskCreate={(status) => {
+                  // Create a new task with the specified status
+                  setTaskToEdit(null); // Ensure we're creating a new task
+                  setIsCreateTaskDialogOpen(true);
+                  // Note: The dialog will need to be enhanced to accept initial status
+                }}
+                onTaskClick={(task: any) => handleTaskClick(task as FrontendTask)}
               />
             )}
             
             {currentView === 'gallery' && (
               <GalleryView 
-                items={filteredTasks}
+                items={filteredTasks as any}
                 type="tasks"
                 onItemUpdate={(itemId: string, updates: any) => handleTaskUpdate(itemId, updates)}
                 onItemClick={(item: any) => handleTaskClick(item as FrontendTask)}
@@ -368,7 +376,7 @@ export function TasksTab({ projectId }: { projectId: string }) {
             
             {currentView === 'list' && (
               <ListView 
-                items={filteredTasks}
+                items={filteredTasks as any}
                 type="tasks"
                 onItemUpdate={(itemId: string, updates: any) => handleTaskUpdate(itemId, updates)}
                 onItemClick={(item: any) => handleTaskClick(item as FrontendTask)}

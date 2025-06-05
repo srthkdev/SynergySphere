@@ -34,12 +34,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState, useEffect } from "react";
+import { Project as ProjectType } from "@/types";
+import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
+import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
+import { AttachmentCount } from "@/components/ui/attachment-thumbnail";
+import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
 
 interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'completed';
+  status: 'todo' | 'in-progress' | 'completed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate?: string;
   assignedBy: string;
@@ -63,6 +69,7 @@ interface Project {
   createdAt: string;
   updatedAt: string;
   role: string; // user's role in the project
+  memberCount: number;
 }
 
 interface ListViewProps {
@@ -70,13 +77,16 @@ interface ListViewProps {
   type: 'tasks' | 'projects';
   onItemUpdate?: (itemId: string, updates: any) => void;
   onItemClick?: (item: Task | Project) => void;
+  onEdit?: (item: Task | Project) => void;
+  onDelete?: (item: Task | Project) => void;
   className?: string;
 }
 
 function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'urgent': return 'bg-red-500';
-    case 'high': return 'bg-orange-500';
+  const normalizedPriority = priority?.toLowerCase() || 'medium';
+  switch (normalizedPriority) {
+    case 'urgent':
+    case 'high': return 'bg-red-500';
     case 'medium': return 'bg-yellow-500';
     case 'low': return 'bg-green-500';
     default: return 'bg-gray-500';
@@ -87,7 +97,6 @@ function getStatusColor(status: string) {
   switch (status) {
     case 'completed': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800';
     case 'in-progress': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800';
-    case 'in-review': return 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800';
     case 'todo': return 'bg-gray-100 dark:bg-gray-800/20 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700';
     case 'active': return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800';
     case 'on-hold': return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800';
@@ -147,10 +156,10 @@ function TaskListItem({ task, onUpdate, onClick }: {
               <Avatar className="h-4 w-4">
                 <AvatarImage src={task.assignedByAvatar} />
                 <AvatarFallback className="text-[8px]">
-                  {task.assignedBy.split(' ').map(n => n[0]).join('')}
+                  {task.assignedBy?.split(' ').map(n => n[0]).join('') || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate max-w-[80px]">{task.assignedBy}</span>
+              <span className="truncate max-w-[80px]">{task.assignedBy || 'Unassigned'}</span>
             </div>
             
             {task.dueDate && (
@@ -180,27 +189,12 @@ function TaskListItem({ task, onUpdate, onClick }: {
           <span className="text-xs text-muted-foreground w-8">{task.progress}%</span>
         </div>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Eye className="mr-2 h-4 w-4" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Task
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <EditTaskButton 
+          task={task}
+          className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0"
+          icon={<Edit className="h-4 w-4" />}
+          iconOnly
+        />
         
         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
       </div>
@@ -208,11 +202,35 @@ function TaskListItem({ task, onUpdate, onClick }: {
   );
 }
 
-function ProjectListItem({ project, onUpdate, onClick }: { 
+function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: { 
   project: Project; 
   onUpdate?: (updates: Partial<Project>) => void;
   onClick?: (project: Project) => void;
+  onEdit?: (project: Project) => void;
+  onDelete?: (project: Project) => void;
 }) {
+  const [attachmentCount, setAttachmentCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch attachment count for this project
+  useEffect(() => {
+    const fetchAttachmentCount = async () => {
+      try {
+        const response = await fetch(`/api/attachments?projectId=${project.id}`);
+        if (response.ok) {
+          const attachments = await response.json();
+          setAttachmentCount(attachments.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch attachment count:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttachmentCount();
+  }, [project.id]);
+
   return (
     <div 
       className="flex items-center justify-between p-4 border-b hover:bg-muted/50 transition-colors cursor-pointer group"
@@ -234,9 +252,17 @@ function ProjectListItem({ project, onUpdate, onClick }: {
             <Badge variant="outline" className="text-xs">
               {project.role}
             </Badge>
+            {attachmentCount > 0 && (
+              <AttachmentCount count={attachmentCount} />
+            )}
           </div>
           
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+            <div className="flex items-center space-x-1">
+              <Users className="h-3 w-3" />
+              <span>{project.memberCount} members</span>
+            </div>
+            
             <div className="flex items-center space-x-1">
               <Calendar className="h-3 w-3" />
               <span>Created {new Date(project.createdAt).toLocaleDateString()}</span>
@@ -258,20 +284,37 @@ function ProjectListItem({ project, onUpdate, onClick }: {
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              onClick?.(project);
+            }}>
               <Eye className="mr-2 h-4 w-4" />
               View Project
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+              e.stopPropagation();
+              onEdit?.(project);
+            }}>
               <Edit className="mr-2 h-4 w-4" />
               Edit Project
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem 
+              className="text-red-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(project);
+              }}
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>
@@ -284,7 +327,7 @@ function ProjectListItem({ project, onUpdate, onClick }: {
   );
 }
 
-export function ListView({ items, type, onItemUpdate, onItemClick, className }: ListViewProps) {
+export function ListView({ items, type, onItemUpdate, onItemClick, onEdit, onDelete, className }: ListViewProps) {
   return (
     <div className={cn("w-full", className)}>
       <div className="border rounded-lg bg-background">
@@ -306,6 +349,8 @@ export function ListView({ items, type, onItemUpdate, onItemClick, className }: 
                   project={item as Project}
                   onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
                   onClick={(project) => onItemClick?.(project)}
+                  onEdit={(project) => onEdit?.(project)}
+                  onDelete={(project) => onDelete?.(project)}
                 />
               );
             }

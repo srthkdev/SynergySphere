@@ -6,12 +6,16 @@ import { getUser } from "@/lib/auth/auth-utils";
 import { v4 as uuidv4 } from "uuid";
 import { createNotification } from "@/lib/notifications";
 
-// Helper to check if current user is an admin of the project
-async function isProjectAdmin(projectId: string, userId: string): Promise<boolean> {
+// Helper to check if current user is an admin or owner of the project
+async function isProjectAdminOrOwner(projectId: string, userId: string): Promise<boolean> {
   const [member] = await db
     .select()
     .from(projectMember)
-    .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId), eq(projectMember.role, 'admin')));
+    .where(and(
+      eq(projectMember.projectId, projectId), 
+      eq(projectMember.userId, userId), 
+      inArray(projectMember.role, ['admin', 'owner'])
+    ));
   return !!member;
 }
 
@@ -86,14 +90,18 @@ export async function POST(
       return NextResponse.json({ error: "Invalid role. Must be 'admin' or 'member'" }, { status: 400 });
     }
 
-    // Check if the current user is an admin of the project
+    // Check if the current user is an admin or owner of the project
     const [currentMember] = await db
       .select()
       .from(projectMember)
-      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, currentUser.id), eq(projectMember.role, 'admin')));
+      .where(and(
+        eq(projectMember.projectId, projectId), 
+        eq(projectMember.userId, currentUser.id), 
+        inArray(projectMember.role, ['admin', 'owner'])
+      ));
 
     if (!currentMember) {
-      return NextResponse.json({ error: "Forbidden: Only project admins can add members" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden: Only project admins and owners can add members" }, { status: 403 });
     }
 
     // Find the user to add
@@ -125,6 +133,20 @@ export async function POST(
         role,
       })
       .returning();
+
+    // Get project details for notification
+    const [projectDetails] = await db
+      .select({ name: project.name })
+      .from(project)
+      .where(eq(project.id, projectId));
+
+    // Create notification for the new member
+    await createNotification({
+      userId: userToAdd.id,
+      message: `You have been added to the project "${projectDetails?.name || 'Unknown Project'}" as a ${role}`,
+      type: "project_member_added",
+      projectId,
+    });
 
     // Return the new member with user details
     const memberWithDetails = await db

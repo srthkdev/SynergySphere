@@ -170,3 +170,23 @@ export const budgetEntry = pgTable("budget_entry", {
     .references(() => user.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// Attachments table for storing base64 file data
+export const attachment = pgTable("attachment", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(), // MIME type (image/jpeg, application/pdf, etc.)
+  fileSize: integer("file_size").notNull(), // in bytes
+  base64Data: text("base64_data").notNull(), // base64 encoded file data
+  projectId: uuid("project_id")
+    .references(() => project.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id")
+    .references(() => task.id, { onDelete: "cascade" }),
+  uploadedById: text("uploaded_by_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Add import for chat schema
+export * from "./schema/chats";

@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "id": "1749082665011",
+    "taskId": "a0a538b8-b298-4e27-944f-73306d5e0818",
+    "text": "hi",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T00:17:45.011Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749089430081",
+    "taskId": "1ec5cc11-5b79-41b2-9041-4465d8649521",
+    "text": "hey",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T02:10:30.081Z",
+    "messageType": "text",
+    "edited": false
+  },
+  {
+    "id": "1749090368223",
+    "taskId": "1ec5cc11-5b79-41b2-9041-4465d8649521",
+    "text": "hello",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T02:26:08.223Z",
+    "messageType": "text",
+    "edited": false
+  }
+]

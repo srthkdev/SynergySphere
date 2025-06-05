@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
-import { task, project, projectMember } from "@/lib/db/schema";
+import { task, project, projectMember, user } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { validateRequestBody, createTaskSchema, updateTaskSchema } from "@/lib/validation";
 import { canAccessProject } from "@/lib/project-auth";
+import { createNotification } from "@/lib/notifications";
 
 // GET /api/tasks - Get all tasks for projects the user has access to
 export const GET = requireAuth(async (request: NextRequest, user: AuthenticatedUser) => {
@@ -77,6 +78,23 @@ export const POST = requireAuth(async (request: NextRequest, user: Authenticated
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
 
+    // Create notification for task assignment
+    if (assigneeId && assigneeId !== user.id) {
+      // Get project and assignee details
+      const [projectInfo] = await db
+        .select({ name: project.name })
+        .from(project)
+        .where(eq(project.id, projectId));
+
+      await createNotification({
+        userId: assigneeId,
+        message: `You have been assigned a new task "${title}" in project "${projectInfo?.name || 'Unknown Project'}"`,
+        type: "task_assigned",
+        projectId,
+        taskId: newTask.id,
+      });
+    }
+
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);
@@ -100,9 +118,13 @@ export const PUT = requireAuth(async (request: NextRequest, user: AuthenticatedU
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Get the task to check project access
+    // Get the task to check project access and current assignee
     const [existingTask] = await db
-      .select({ projectId: task.projectId })
+      .select({ 
+        projectId: task.projectId, 
+        assigneeId: task.assigneeId,
+        title: task.title 
+      })
       .from(task)
       .where(eq(task.id, id));
 
@@ -135,6 +157,37 @@ export const PUT = requireAuth(async (request: NextRequest, user: AuthenticatedU
 
     if (!updatedTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Create notification for assignee change
+    if (validation.data.assigneeId && 
+        validation.data.assigneeId !== existingTask.assigneeId && 
+        validation.data.assigneeId !== user.id) {
+      
+      // Get project details
+      const [projectInfo] = await db
+        .select({ name: project.name })
+        .from(project)
+        .where(eq(project.id, existingTask.projectId));
+
+      await createNotification({
+        userId: validation.data.assigneeId,
+        message: `You have been assigned to task "${existingTask.title}" in project "${projectInfo?.name || 'Unknown Project'}"`,
+        type: "task_assigned",
+        projectId: existingTask.projectId,
+        taskId: id,
+      });
+    }
+
+    // Create notification for task status change (for assignee if different from updater)
+    if (validation.data.status && existingTask.assigneeId && existingTask.assigneeId !== user.id) {
+      await createNotification({
+        userId: existingTask.assigneeId,
+        message: `Task "${existingTask.title}" status has been updated to "${validation.data.status}"`,
+        type: "task_update",
+        projectId: existingTask.projectId,
+        taskId: id,
+      });
     }
     
     return NextResponse.json(updatedTask);

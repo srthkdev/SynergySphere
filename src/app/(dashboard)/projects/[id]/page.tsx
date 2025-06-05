@@ -8,7 +8,10 @@ import {
   LayoutList, 
   MessageSquare, 
   Settings,
-  Loader2
+  DollarSign,
+  Loader2,
+  Edit,
+  Paperclip
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -21,9 +24,11 @@ import { TasksTab } from "@/components/projects/tabs/TasksTab";
 import { MembersTab } from "@/components/projects/tabs/MembersTab";
 import { DiscussionsTab } from "@/components/projects/tabs/DiscussionsTab";
 import { SettingsTab } from "@/components/projects/tabs/SettingsTab";
+import { BudgetTab } from "@/components/projects/tabs/BudgetTab";
+import { AttachmentsTab } from "@/components/projects/tabs/AttachmentsTab";
 
 // Tabs for the project
-type ProjectTab = 'tasks' | 'members' | 'discussions' | 'settings';
+type ProjectTab = 'tasks' | 'members' | 'discussions' | 'attachments' | 'budget' | 'settings';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -95,6 +100,14 @@ export default function ProjectPage() {
             )}
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/projects/edit/${projectId}`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Project
+            </Link>
+          </Button>
+        </div>
       </div>
       
       {/* Tabs */}
@@ -119,6 +132,18 @@ export default function ProjectPage() {
             label="Discussions"
           />
           <TabButton 
+            isActive={activeTab === 'attachments'} 
+            onClick={() => setActiveTab('attachments')}
+            icon={<Paperclip className="h-4 w-4 mr-2" />}
+            label="Attachments"
+          />
+          <TabButton 
+            isActive={activeTab === 'budget'} 
+            onClick={() => setActiveTab('budget')}
+            icon={<DollarSign className="h-4 w-4 mr-2" />}
+            label="Budget"
+          />
+          <TabButton 
             isActive={activeTab === 'settings'} 
             onClick={() => setActiveTab('settings')}
             icon={<Settings className="h-4 w-4 mr-2" />}
@@ -132,6 +157,8 @@ export default function ProjectPage() {
         {activeTab === 'tasks' && <TasksTab projectId={projectId} />}
         {activeTab === 'members' && <MembersTab projectId={projectId} />}
         {activeTab === 'discussions' && <DiscussionsTab projectId={projectId} />}
+        {activeTab === 'attachments' && <AttachmentsTab projectId={projectId} />}
+        {activeTab === 'budget' && <BudgetTab projectId={projectId} />}
         {activeTab === 'settings' && <SettingsTab project={project} />}
       </div>
     </div>

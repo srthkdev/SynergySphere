@@ -33,7 +33,57 @@ export const GET = requireAuth(async (req: NextRequest, user: AuthenticatedUser)
 // POST /api/notifications - Create a notification (for testing purposes)
 export const POST = requireAuth(async (req: NextRequest, user: AuthenticatedUser) => {
   try {
-    const { message, type, projectId, taskId } = await req.json();
+    const { message, type, projectId, taskId, testNotifications } = await req.json();
+
+    // If testNotifications flag is set, create multiple test notifications
+    if (testNotifications) {
+      const testNotificationData = [
+        {
+          message: "Welcome to SynergySphere! You've been added to your first project.",
+          type: "project_member_added",
+        },
+        {
+          message: "You have been assigned a new task: 'Update user interface design'",
+          type: "task_assigned",
+        },
+        {
+          message: "Someone mentioned you in project chat: @" + user.name + " can you review this?",
+          type: "chat_mention",
+        },
+        {
+          message: "New message in Project Alpha chat: 'Meeting scheduled for tomorrow at 2 PM'",
+          type: "project_message",
+        },
+        {
+          message: "Task 'Database optimization' status updated to IN_PROGRESS",
+          type: "task_update",
+        },
+        {
+          message: "Project milestone 'Phase 1' has been completed",
+          type: "project_update",
+        }
+      ];
+
+      const createdNotifications = [];
+      for (const notifData of testNotificationData) {
+        const [newNotification] = await db
+          .insert(notification)
+          .values({
+            userId: user.id,
+            message: notifData.message,
+            type: notifData.type,
+            projectId: projectId || null,
+            taskId: taskId || null,
+          })
+          .returning();
+        createdNotifications.push(newNotification);
+      }
+
+      return NextResponse.json({ 
+        message: "Test notifications created",
+        notifications: createdNotifications 
+      }, { status: 201 });
+    }
 
     if (!message || !type) {
       return NextResponse.json({ error: "Message and type are required" }, { status: 400 });

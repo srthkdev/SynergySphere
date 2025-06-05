@@ -99,7 +99,14 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
-    if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
+    
+    // Explicitly handle assigneeId, allowing it to be set to null
+    if (assigneeId !== undefined) {
+      updateData.assigneeId = assigneeId;
+      console.log("Setting assigneeId to:", assigneeId); // Debug log
+    }
+
+    console.log("Task update data:", updateData); // Debug log
 
     const [updatedTask] = await db
       .update(task)

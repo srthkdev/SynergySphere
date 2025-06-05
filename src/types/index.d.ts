@@ -27,6 +27,8 @@ export interface Project {
   deadline?: string;
   priority?: "Low" | "Medium" | "High";
   imageUrl?: string;
+  status?: 'planning' | 'active' | 'on-hold' | 'completed';
+  role?: string; // user's role in the project
 }
 
 // Define Task status enum type (mirroring db schema)
@@ -60,7 +62,7 @@ export interface ProjectMember {
   name: string;
   email: string;
   image?: string | null;
-  role: 'admin' | 'member';
+  role: 'owner' | 'admin' | 'member';
   joinedAt: string; // ISO date string
 }
 
@@ -82,12 +84,73 @@ export interface Comment {
 export interface Notification {
   id: string;
   userId: string;
+  title: string;
   message: string;
-  type: string; // e.g., "task_assigned", "comment_added", "project_invite"
-  projectId?: string | null;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Budget {
+  id: string;
+  projectId: string;
+  totalBudget: number;
+  spentAmount: number;
+  currency: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetEntry {
+  id: string;
+  budgetId: string;
+  amount: number;
+  description: string;
+  category: string;
+  taskId?: string;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface Attachment {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  base64Data: string;
+  projectId?: string;
+  taskId?: string;
+  uploadedById: string;
+  createdAt: string;
+}
+
+// Chat Message type for real-time communication
+export interface ChatMessage {
+  id: string;
+  content: string;
+  projectId: string;
   taskId?: string | null;
-  isRead: boolean;
-  createdAt: string; // ISO date string
-  // Optional: Add a URL or link for navigation when notification is clicked
-  link?: string;
+  authorId: string;
+  authorName: string;
+  authorImage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  readBy: string[]; // Array of user IDs who have read the message
+  reactions?: {
+    [reaction: string]: string[]; // reaction type -> array of user IDs
+  };
+}
+
+// Chat Room type
+export interface ChatRoom {
+  id: string;
+  name: string;
+  projectId: string;
+  taskId?: string | null;
+  participants: string[]; // Array of user IDs
+  lastMessage?: ChatMessage;
+  lastActivity: string;
+  createdAt: string;
+  updatedAt: string;
 }

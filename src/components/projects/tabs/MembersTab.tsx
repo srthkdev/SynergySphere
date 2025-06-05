@@ -143,7 +143,12 @@ export function MembersTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {member.role === "admin" ? (
+                  {member.role === "owner" ? (
+                    <div className="flex items-center text-sm text-yellow-800 bg-yellow-100 px-2 py-1 rounded-full">
+                      <Shield className="h-3 w-3 mr-1" />
+                      Owner
+                    </div>
+                  ) : member.role === "admin" ? (
                     <div className="flex items-center text-sm text-primary-foreground bg-primary px-2 py-1 rounded-full">
                       <Shield className="h-3 w-3 mr-1" />
                       Admin
@@ -155,8 +160,8 @@ export function MembersTab({ projectId }: { projectId: string }) {
                     </div>
                   )}
                   
-                  {/* Don't show dropdown for current user */}
-                  {member.id !== currentUserId && (
+                  {/* Don't show dropdown for current user or for owners */}
+                  {member.userId !== currentUserId && member.role !== "owner" && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">

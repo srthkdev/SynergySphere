@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +36,10 @@ import {
   User,
   Check,
   X,
-  Paperclip
+  Paperclip,
+  AtSign,
+  Loader2,
+  RefreshCw
 } from "lucide-react"
 import { 
   DropdownMenu,
@@ -43,131 +49,89 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useChat } from "@/components/chat/ChatProvider"
+import { toast } from "sonner"
 
-const notifications = [
-  {
-    id: 1,
-    type: "task_assigned",
-    title: "New task assigned: Update user documentation",
-    description: "Alice Johnson assigned you a new task in the Website Redesign project",
-    timestamp: "2024-01-15T10:30:00Z",
-    isRead: false,
-    priority: "medium",
-    sender: "Alice Johnson",
-    avatar: "/avatars/alice.jpg",
-    project: "Website Redesign"
-  },
-  {
-    id: 2,
-    type: "comment",
-    title: "New comment on your task",
-    description: "Bob Smith commented on 'Design landing page wireframes'",
-    timestamp: "2024-01-15T09:15:00Z",
-    isRead: false,
-    priority: "low",
-    sender: "Bob Smith",
-    avatar: "/avatars/bob.jpg",
-    project: "Mobile App"
-  },
-  {
-    id: 3,
-    type: "deadline",
-    title: "Deadline reminder",
-    description: "Task 'API Integration' is due tomorrow",
-    timestamp: "2024-01-15T08:00:00Z",
-    isRead: true,
-    priority: "high",
-    sender: "System",
-    avatar: "/avatars/system.jpg",
-    project: "Backend Development"
-  },
-  {
-    id: 4,
-    type: "project_update",
-    title: "Project milestone completed",
-    description: "Design phase completed for Marketing Campaign project",
-    timestamp: "2024-01-14T16:45:00Z",
-    isRead: true,
-    priority: "medium",
-    sender: "Carol Davis",
-    avatar: "/avatars/carol.jpg",
-    project: "Marketing Campaign"
-  },
-  {
-    id: 5,
-    type: "team_mention",
-    title: "You were mentioned in a discussion",
-    description: "David Wilson mentioned you in team chat about budget planning",
-    timestamp: "2024-01-14T14:20:00Z",
-    isRead: false,
-    priority: "medium",
-    sender: "David Wilson",
-    avatar: "/avatars/david.jpg",
-    project: "Budget Planning"
-  }
-]
+interface Notification {
+  id: string;
+  userId: string;
+  message: string;
+  type: string;
+  projectId?: string;
+  taskId?: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
-const messages = [
-  {
-    id: 1,
-    sender: "Alice Johnson",
-    subject: "Project Timeline Review",
-    preview: "Hi team, I wanted to discuss the upcoming project timeline and see if we need to adjust any deadlines...",
-    timestamp: "2024-01-15T11:30:00Z",
-    isRead: false,
-    isStarred: true,
-    hasAttachment: true,
-    avatar: "/avatars/alice.jpg"
-  },
-  {
-    id: 2,
-    sender: "Bob Smith",
-    subject: "Code Review Request",
-    preview: "Could you please review the new API endpoints I've implemented? The code is ready for testing...",
-    timestamp: "2024-01-15T10:15:00Z",
-    isRead: false,
-    isStarred: false,
-    hasAttachment: false,
-    avatar: "/avatars/bob.jpg"
-  },
-  {
-    id: 3,
-    sender: "Carol Davis",
-    subject: "Design System Updates",
-    preview: "I've updated our design system with new components and color palette. Please review the changes...",
-    timestamp: "2024-01-14T15:30:00Z",
-    isRead: true,
-    isStarred: false,
-    hasAttachment: true,
-    avatar: "/avatars/carol.jpg"
-  },
-  {
-    id: 4,
-    sender: "David Wilson",
-    subject: "Weekly Analytics Report",
-    preview: "Here's the weekly analytics report showing our progress and key metrics for this week...",
-    timestamp: "2024-01-14T09:00:00Z",
-    isRead: true,
-    isStarred: true,
-    hasAttachment: true,
-    avatar: "/avatars/david.jpg"
-  }
-]
+interface ChatMessage {
+  id: string;
+  content: string;
+  projectId: string;
+  taskId?: string;
+  authorId: string;
+  authorName: string;
+  authorImage?: string;
+  createdAt: string;
+  updatedAt: string;
+  readBy: string[];
+  reactions: Record<string, any>;
+}
+
+interface Project {
+  id: string;
+  name: string;
+}
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case 'task_assigned':
+    case 'task_update':
       return <CheckCircle className="h-5 w-5 text-blue-600" />
     case 'comment':
+    case 'chat_mention':
       return <MessageSquare className="h-5 w-5 text-green-600" />
     case 'deadline':
+    case 'task_due_soon':
       return <AlertCircle className="h-5 w-5 text-red-600" />
     case 'project_update':
+    case 'project_message':
       return <Info className="h-5 w-5 text-purple-600" />
+    case 'project_member_added':
+      return <Users className="h-5 w-5 text-blue-600" />
     case 'team_mention':
+    case 'mention':
       return <Users className="h-5 w-5 text-orange-600" />
+    case 'info':
+      return <Info className="h-5 w-5 text-blue-600" />
+    case 'success':
+      return <CheckCircle className="h-5 w-5 text-green-600" />
+    case 'warning':
+      return <AlertCircle className="h-5 w-5 text-yellow-600" />
+    case 'error':
+      return <AlertCircle className="h-5 w-5 text-red-600" />
     default:
       return <Bell className="h-5 w-5 text-gray-600" />
+  }
+}
+
+const getNotificationPriority = (type: string) => {
+  switch (type) {
+    case 'deadline':
+    case 'task_due_soon':
+    case 'error':
+      return 'high';
+    case 'task_assigned':
+    case 'chat_mention':
+    case 'project_member_added':
+    case 'warning':
+      return 'medium';
+    case 'project_message':
+    case 'task_update':
+    case 'project_update':
+    case 'info':
+    case 'success':
+    default:
+      return 'low';
   }
 }
 
@@ -196,8 +160,144 @@ const formatTime = (timestamp: string) => {
 }
 
 export default function InboxPage() {
-  const unreadNotifications = notifications.filter(n => !n.isRead).length
-  const unreadMessages = messages.filter(m => !m.isRead).length
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { unreadCount: unreadMentions } = useChat();
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      } else {
+        console.error('Failed to fetch notifications');
+        toast.error('Failed to load notifications');
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
+    }
+  };
+
+  // Fetch recent chat messages from all projects
+  const fetchRecentMessages = async () => {
+    try {
+      // First get user's projects
+      const projectsResponse = await fetch('/api/projects');
+      if (projectsResponse.ok) {
+        const projectsData = await projectsResponse.json();
+        setProjects(projectsData);
+        
+        // Fetch recent messages from all projects
+        const allMessages: ChatMessage[] = [];
+        
+        for (const project of projectsData.slice(0, 5)) { // Limit to 5 projects for performance
+          try {
+            const messagesResponse = await fetch(`/api/chat/messages?projectId=${project.id}&limit=10`);
+            if (messagesResponse.ok) {
+              const messages = await messagesResponse.json();
+              allMessages.push(...messages.map((msg: any) => ({
+                ...msg,
+                projectName: project.name
+              })));
+            }
+          } catch (err) {
+            console.error(`Error fetching messages for project ${project.id}:`, err);
+          }
+        }
+        
+        // Sort by creation time and get the most recent
+        allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setRecentMessages(allMessages.slice(0, 20)); // Keep only 20 most recent
+      }
+    } catch (error) {
+      console.error('Error fetching recent messages:', error);
+    }
+  };
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: [notificationId] }),
+      });
+      
+      if (response.ok) {
+        setNotifications(notifications.map(n => 
+          n.id === notificationId ? { ...n, isRead: true } : n
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      toast.error('Failed to mark notification as read');
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true }),
+      });
+      
+      if (response.ok) {
+        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+        toast.success('All notifications marked as read');
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      toast.error('Failed to mark all notifications as read');
+    }
+  };
+
+  // Refresh data
+  const refreshData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchNotifications(),
+      fetchRecentMessages()
+    ]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  // Filter notifications
+  const filteredNotifications = notifications.filter(notification => {
+    if (filter === 'unread' && notification.isRead) return false;
+    if (filter === 'high' && getNotificationPriority(notification.type) !== 'high') return false;
+    if (searchQuery && !notification.message.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  // Filter messages
+  const filteredMessages = recentMessages.filter(message => {
+    if (filter === 'unread' && message.readBy.includes(message.authorId)) return false;
+    if (searchQuery && !message.content.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const unreadNotifications = notifications.filter(n => !n.isRead).length;
+  const unreadMessages = recentMessages.filter(m => !m.readBy.includes(m.authorId)).length;
+  const highPriorityNotifications = notifications.filter(n => getNotificationPriority(n.type) === 'high').length;
+  const thisWeekNotifications = notifications.filter(n => {
+    const notifDate = new Date(n.createdAt);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return notifDate > weekAgo;
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -209,11 +309,11 @@ export default function InboxPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Archive className="mr-2 h-4 w-4" />
-            Archive All
+          <Button variant="outline" onClick={refreshData} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
-          <Button>
+          <Button onClick={markAllAsRead} disabled={unreadNotifications === 0}>
             <Check className="mr-2 h-4 w-4" />
             Mark All Read
           </Button>
@@ -236,13 +336,13 @@ export default function InboxPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Messages</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Recent Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{messages.length}</div>
+            <div className="text-2xl font-bold">{recentMessages.length}</div>
             <p className="text-xs text-muted-foreground">
-              {unreadMessages} unread
+              From {projects.length} projects
             </p>
           </CardContent>
         </Card>
@@ -252,9 +352,7 @@ export default function InboxPage() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {notifications.filter(n => n.priority === 'high').length}
-            </div>
+            <div className="text-2xl font-bold">{highPriorityNotifications}</div>
             <p className="text-xs text-muted-foreground">
               Require attention
             </p>
@@ -266,14 +364,7 @@ export default function InboxPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {notifications.filter(n => {
-                const notifDate = new Date(n.timestamp)
-                const weekAgo = new Date()
-                weekAgo.setDate(weekAgo.getDate() - 7)
-                return notifDate > weekAgo
-              }).length}
-            </div>
+            <div className="text-2xl font-bold">{thisWeekNotifications}</div>
             <p className="text-xs text-muted-foreground">
               New notifications
             </p>
@@ -293,28 +384,31 @@ export default function InboxPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="messages" className="relative">
-              Messages
-              {unreadMessages > 0 && (
+              Chat Messages
+              {unreadMentions > 0 && (
                 <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
-                  {unreadMessages}
+                  {unreadMentions}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="archived">Archived</TabsTrigger>
           </TabsList>
           <div className="flex items-center space-x-2">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search inbox..." className="pl-8 w-[250px]" />
+              <Input 
+                placeholder="Search inbox..." 
+                className="pl-8 w-[250px]" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <Select defaultValue="all">
+            <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="unread">Unread</SelectItem>
-                <SelectItem value="starred">Starred</SelectItem>
                 <SelectItem value="high">High Priority</SelectItem>
               </SelectContent>
             </Select>
@@ -322,183 +416,166 @@ export default function InboxPage() {
         </div>
 
         <TabsContent value="notifications" className="space-y-4">
-          <div className="space-y-2">
-            {notifications.map((notification) => (
-              <Card key={notification.id} className={`cursor-pointer transition-colors hover:bg-accent/50 ${!notification.isRead ? 'bg-blue-50/50 border-blue-200' : ''}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className={`font-medium text-sm ${!notification.isRead ? 'font-semibold' : ''}`}>
-                          {notification.title}
-                        </h3>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getPriorityColor(notification.priority)}>
-                            {notification.priority}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(notification.timestamp)}
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Check className="mr-2 h-4 w-4" />
-                                Mark as read
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Star className="mr-2 h-4 w-4" />
-                                Star
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Archive className="mr-2 h-4 w-4" />
-                                Archive
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No notifications</h3>
+                <p className="text-muted-foreground">
+                  {filter === 'all' ? 'You have no notifications yet' : `No ${filter} notifications`}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredNotifications.map((notification) => {
+                const priority = getNotificationPriority(notification.type);
+                return (
+                  <Card 
+                    key={notification.id} 
+                    className={`cursor-pointer transition-colors hover:bg-accent/50 ${!notification.isRead ? 'bg-blue-50/50 border-blue-200' : ''}`}
+                    onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          {getNotificationIcon(notification.type)}
                         </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{notification.description}</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={notification.avatar} />
-                            <AvatarFallback className="text-xs">
-                              {notification.sender.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground">{notification.sender}</span>
-                          {notification.project && (
-                            <>
-                              <span className="text-xs text-muted-foreground">•</span>
-                              <Badge variant="outline" className="text-xs">
-                                {notification.project}
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h3 className={`font-medium text-sm ${!notification.isRead ? 'font-semibold' : ''}`}>
+                              {notification.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </h3>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={getPriorityColor(priority)}>
+                                {priority}
                               </Badge>
-                            </>
-                          )}
+                              <span className="text-xs text-muted-foreground">
+                                {formatTime(notification.createdAt)}
+                              </span>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {!notification.isRead && (
+                                    <DropdownMenuItem onClick={() => markNotificationAsRead(notification.id)}>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      Mark as read
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem>
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{notification.message}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-muted-foreground">System</span>
+                              {notification.projectId && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">•</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    Project Activity
+                                  </Badge>
+                                </>
+                              )}
+                              {notification.taskId && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">•</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    Task Activity
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            {!notification.isRead && (
+                              <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                            )}
+                          </div>
                         </div>
-                        {!notification.isRead && (
-                          <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
-                        )}
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="messages" className="space-y-4">
-          <div className="space-y-2">
-            {messages.map((message) => (
-              <Card key={message.id} className={`cursor-pointer transition-colors hover:bg-accent/50 ${!message.isRead ? 'bg-blue-50/50 border-blue-200' : ''}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={message.avatar} />
-                      <AvatarFallback>
-                        {message.sender.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <h3 className={`font-medium text-sm ${!message.isRead ? 'font-semibold' : ''}`}>
-                            {message.sender}
-                          </h3>
-                          {message.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-current" />}
-                          {message.hasAttachment && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : filteredMessages.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No recent messages</h3>
+                <p className="text-muted-foreground">
+                  No recent chat messages found
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredMessages.map((message) => (
+                <Card key={message.id} className="cursor-pointer transition-colors hover:bg-accent/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-start space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={message.authorImage} />
+                        <AvatarFallback>
+                          {message.authorName ? message.authorName.split(' ').map(n => n[0]).join('') : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="font-medium text-sm">
+                              {message.authorName || 'Unknown User'}
+                            </h3>
+                            {message.content.includes('@') && <AtSign className="h-3 w-3 text-orange-500" />}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(message.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(message.timestamp)}
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Reply className="mr-2 h-4 w-4" />
-                                Reply
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Forward className="mr-2 h-4 w-4" />
-                                Forward
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Star className="mr-2 h-4 w-4" />
-                                Star
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Archive className="mr-2 h-4 w-4" />
-                                Archive
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      <h4 className={`text-sm ${!message.isRead ? 'font-medium' : ''}`}>
-                        {message.subject}
-                      </h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {message.preview}
-                      </p>
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Reply className="mr-2 h-3 w-3" />
-                            Reply
-                          </Button>
-                          {message.hasAttachment && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {message.content}
+                        </p>
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center space-x-2">
                             <Badge variant="outline" className="text-xs">
-                              <Paperclip className="mr-1 h-2 w-2" />
-                              Attachment
+                              {(message as any).projectName || 'Project Chat'}
                             </Badge>
-                          )}
+                            {message.taskId && (
+                              <Badge variant="outline" className="text-xs">
+                                Task Chat
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        {!message.isRead && (
-                          <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
-                        )}
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="archived" className="space-y-4">
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Archive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No archived items</h3>
-              <p className="text-muted-foreground">
-                Archived notifications and messages will appear here
-              </p>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

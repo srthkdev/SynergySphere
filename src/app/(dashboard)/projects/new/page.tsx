@@ -17,9 +17,14 @@ import {
   X,
   Calendar,
   User,
-  Tag
+  Tag,
+  Image as ImageIcon,
+  Flag,
+  Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { FileUpload } from '@/components/ui/file-upload';
+import { uploadMultipleAttachments } from '@/lib/utils/file-utils';
 
 interface ProjectData {
   name: string;
@@ -30,6 +35,9 @@ interface ProjectData {
   managerId: string;
   deadline: string;
   imageUrl: string;
+  createBudget: boolean;
+  budgetAmount: number;
+  budgetCurrency: string;
 }
 
 interface User {
@@ -42,6 +50,7 @@ export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [tagInput, setTagInput] = useState('');
   
   const [formData, setFormData] = useState<ProjectData>({
@@ -53,6 +62,9 @@ export default function NewProjectPage() {
     managerId: '',
     deadline: '',
     imageUrl: '',
+    createBudget: false,
+    budgetAmount: 0,
+    budgetCurrency: 'USD',
   });
 
   // Fetch users for project manager selection
@@ -102,11 +114,40 @@ export default function NewProjectPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // For now, we'll just create a local URL
-    // In production, you'd upload to a cloud storage service
-    const imageUrl = URL.createObjectURL(file);
-    handleInputChange('imageUrl', imageUrl);
-    toast.success('Image uploaded successfully!');
+    // Validate file size and type
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 5MB.");
+      return;
+    }
+    
+    if (!["image/jpeg", "image/png", "image/gif"].includes(file.type)) {
+      toast.error("Only JPG, PNG and GIF images are allowed.");
+      return;
+    }
+
+    const uploadToastId = toast.loading("Uploading image...");
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Image upload failed");
+      }
+      
+      const result = await response.json();
+      handleInputChange('imageUrl', result.imageUrl);
+      toast.success("Image uploaded successfully!", { id: uploadToastId });
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      toast.error(error.message || "Image upload failed", { id: uploadToastId });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,32 +161,76 @@ export default function NewProjectPage() {
     setLoading(true);
     
     try {
-      const submitData = {
-        ...formData,
-        tags: JSON.stringify(formData.tags), // Convert tags array to JSON string
-        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
-        managerId: formData.managerId || null,
-      };
-
+      // Create the project first
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submitData),
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          status: formData.status,
+          priority: formData.priority,
+          tags: formData.tags.length > 0 ? formData.tags : null,
+          managerId: formData.managerId || null,
+          deadline: formData.deadline || null,
+          imageUrl: formData.imageUrl || null,
+          createBudget: formData.createBudget,
+          budgetAmount: formData.budgetAmount,
+          budgetCurrency: formData.budgetCurrency,
+        }),
       });
 
-      if (response.ok) {
-        const newProject = await response.json();
-        toast.success('Project created successfully!');
-        router.push(`/projects/${newProject.id}`);
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to create project');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create project');
       }
+
+      const newProject = await response.json();
+
+      // Create budget if requested
+      if (formData.createBudget && formData.budgetAmount > 0) {
+        try {
+          const budgetResponse = await fetch('/api/budgets', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              projectId: newProject.id,
+              totalBudget: formData.budgetAmount * 100, // Convert to cents
+              currency: formData.budgetCurrency,
+            }),
+          });
+
+          if (!budgetResponse.ok) {
+            console.error('Failed to create budget, but project was created successfully');
+            toast.warning('Project created but budget setup failed. You can set up the budget later.');
+          }
+        } catch (budgetError) {
+          console.error('Error creating budget:', budgetError);
+          toast.warning('Project created but budget setup failed. You can set up the budget later.');
+        }
+      }
+
+      // Upload attachments if any
+      if (newFiles.length > 0) {
+        try {
+          await uploadMultipleAttachments(newFiles, newProject.id);
+          toast.success(`Project created successfully with ${newFiles.length} attachment(s)!`);
+        } catch (attachmentError) {
+          console.error('Error uploading attachments:', attachmentError);
+          toast.warning('Project created but some attachments failed to upload');
+        }
+      } else {
+        toast.success('Project created successfully!');
+      }
+
+      router.push(`/projects/${newProject.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
-      toast.error('Failed to create project');
+      toast.error(error instanceof Error ? error.message : 'Failed to create project');
     } finally {
       setLoading(false);
     }
@@ -273,7 +358,7 @@ export default function NewProjectPage() {
                 {/* Image Upload */}
                 <div>
                   <Label htmlFor="image" className="mb-1 flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
+                    <ImageIcon className="h-4 w-4" />
                     Project Image
                   </Label>
                   <div className="flex items-center gap-4">
@@ -322,6 +407,77 @@ export default function NewProjectPage() {
                     rows={4}
                   />
                 </div>
+
+                {/* Budget Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="createBudget"
+                      checked={formData.createBudget}
+                      onChange={(e) => setFormData(prev => ({ ...prev, createBudget: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="createBudget" className="text-sm font-medium text-gray-700">
+                      Set up project budget (optional)
+                    </label>
+                  </div>
+
+                  {formData.createBudget && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                      <div>
+                        <label htmlFor="budgetAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                          Budget Amount
+                        </label>
+                        <input
+                          type="number"
+                          id="budgetAmount"
+                          min="0"
+                          step="0.01"
+                          value={formData.budgetAmount}
+                          onChange={(e) => setFormData(prev => ({ ...prev, budgetAmount: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter budget amount"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="budgetCurrency" className="block text-sm font-medium text-gray-700 mb-1">
+                          Currency
+                        </label>
+                        <select
+                          id="budgetCurrency"
+                          value={formData.budgetCurrency}
+                          onChange={(e) => setFormData(prev => ({ ...prev, budgetCurrency: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="GBP">GBP (£)</option>
+                          <option value="JPY">JPY (¥)</option>
+                          <option value="CAD">CAD (C$)</option>
+                          <option value="AUD">AUD (A$)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* File Attachments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  File Attachments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FileUpload
+                  onFilesChange={setNewFiles}
+                  maxFiles={10}
+                  maxSizeInMB={10}
+                />
               </CardContent>
             </Card>
           </div>

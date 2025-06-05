@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
-import { project, projectMember } from "@/lib/db/schema";
+import { project } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getUserProjects, canModifyProject } from "@/lib/project-auth";
 import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
+import { validateRequestBody, updateProjectSchema } from "@/lib/validation";
 
 // GET /api/projects/:id - Get project by ID
 export async function GET(
@@ -55,15 +56,26 @@ export async function PUT(
         return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
       }
 
-      const { name, description } = body;
+      // Validate input using the updateProjectSchema
+      const validation = validateRequestBody(updateProjectSchema, body);
+      if (!validation.success) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+
+      // Prepare update data
+      const updateData: any = {
+        ...validation.data,
+        updatedAt: new Date(),
+      };
+
+      // Convert deadline string to Date if provided
+      if (validation.data.deadline !== undefined) {
+        updateData.deadline = validation.data.deadline ? new Date(validation.data.deadline) : null;
+      }
 
       const [updatedProject] = await db
         .update(project)
-        .set({ 
-          name,
-          description,
-          updatedAt: new Date()
-        })
+        .set(updateData)
         .where(eq(project.id, id))
         .returning();
 
