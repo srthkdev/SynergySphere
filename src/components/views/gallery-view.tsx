@@ -128,7 +128,7 @@ function TaskCard({ task, onUpdate, onClick, currentUserId }: {
                   {task.priorityInfo?.priorityLevel || 'P-?'}
                 </Badge>
               )}
-              <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+              <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority || 'medium')}`} />
             </div>
             <CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
               {task.title}
@@ -501,7 +501,7 @@ export function GalleryView({ items, type, onItemUpdate, onItemClick, onEdit, on
   // Filter out completed tasks before prioritization
   const activeItems = items.filter(item => 
     type === 'tasks' ? 
-      (item as Task).status !== 'DONE' && (item as Task).status !== 'completed' : 
+      (item as Task).status !== 'DONE' : 
       true
   );
   
@@ -516,7 +516,7 @@ export function GalleryView({ items, type, onItemUpdate, onItemClick, onEdit, on
   // Separate completed tasks
   const completedItems = items.filter(item => 
     type === 'tasks' ? 
-      (item as Task).status === 'DONE' || (item as Task).status === 'completed' : 
+      (item as Task).status === 'DONE' : 
       false
   );
 
@@ -524,7 +524,7 @@ export function GalleryView({ items, type, onItemUpdate, onItemClick, onEdit, on
     <div className={cn("w-full", className)}>
       {/* Active Tasks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 auto-rows-fr">
-        {prioritizedTasks.map((item) => {
+        {(type === 'tasks' ? prioritizedTasks : activeItems).map((item) => {
           if (type === 'tasks') {
             return (
               <TaskCard
