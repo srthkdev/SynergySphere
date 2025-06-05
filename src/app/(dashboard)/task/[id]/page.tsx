@@ -24,10 +24,12 @@ import {
   Timer,
   Smile,
   Paperclip,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw
 } from 'lucide-react';
 import { Task, ProjectMember } from "@/types";
 import { fetchProjectMembers } from '@/lib/queries';
+import { useSession } from '@/lib/auth/auth-client';
 
 interface Comment {
   id: string;
@@ -43,6 +45,8 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = params.id as string;
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const currentUser = session?.user;
   
   const [task, setTask] = useState<Task | null>(null);
   const [assignee, setAssignee] = useState<ProjectMember | null>(null);
@@ -52,6 +56,20 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [refreshingComments, setRefreshingComments] = useState(false);
+
+  // Function to fetch task comments
+  const fetchTaskComments = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/comments`);
+      if (response.ok) {
+        const commentsData = await response.json();
+        setComments(commentsData);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchTaskAndAssignee = async () => {
@@ -89,18 +107,6 @@ export default function TaskDetailPage() {
       }
     };
 
-    const fetchTaskComments = async () => {
-      try {
-        const response = await fetch(`/api/tasks/${taskId}/comments`);
-        if (response.ok) {
-          const commentsData = await response.json();
-          setComments(commentsData);
-        }
-      } catch (error) {
-        console.error('Error fetching comments:', error);
-      }
-    };
-
     if (taskId) {
       // Promise.all([fetchTask(), fetchComments()]).finally(() => { // Original
       Promise.all([fetchTaskAndAssignee(), fetchTaskComments()]).finally(() => {
@@ -126,7 +132,7 @@ export default function TaskDetailPage() {
   }, [newComment]);
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !currentUser) return;
 
     setSubmittingComment(true);
     try {
@@ -137,7 +143,7 @@ export default function TaskDetailPage() {
         },
         body: JSON.stringify({
           text: newComment,
-          authorName: 'Current User', // In a real app, this would come from auth
+          authorName: currentUser.name || currentUser.email || 'Unknown User',
         }),
       });
 
@@ -203,6 +209,28 @@ export default function TaskDetailPage() {
     return dueDate && new Date(dueDate) < new Date() && task?.status !== 'DONE';
   };
 
+  // Get user's initials for avatar fallback
+  const getUserInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  // Check if the current user is the author of a comment
+  const isCurrentUserAuthor = (authorName: string) => {
+    if (!currentUser) return false;
+    const currentUserName = currentUser.name || currentUser.email || '';
+    return authorName === currentUserName;
+  };
+
+  const handleRefreshComments = async () => {
+    setRefreshingComments(true);
+    await fetchTaskComments();
+    setRefreshingComments(false);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -251,16 +279,9 @@ export default function TaskDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="details">Task Details</TabsTrigger>
-              <TabsTrigger value="chatter" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Team Chatter ({comments.length})
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="details" className="space-y-4">
+          <div className="space-y-6">
+            {/* Task Details Section */}
+            <div className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Description</CardTitle>
@@ -307,17 +328,48 @@ export default function TaskDetailPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
             
-            <TabsContent value="chatter" className="space-y-4">
+            {/* Team Chatter Section */}
+            <div className="space-y-4">
               {/* Chat Container */}
               <Card className="h-[500px] flex flex-col">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
-                      Team Chatter
+                      Team Chatter ({comments.length})
                     </CardTitle>
+                    
+                    <div className="flex items-center gap-4">
+                      {/* Refresh button */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 px-2"
+                        onClick={handleRefreshComments}
+                        disabled={refreshingComments}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${refreshingComments ? 'animate-spin' : ''}`} />
+                        <span className="sr-only">Refresh comments</span>
+                      </Button>
+
+                      {/* User info - show who's posting */}
+                      {currentUser && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Posting as:</span>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={currentUser.image || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {getUserInitials(currentUser.name || currentUser.email || 'U')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{currentUser.name || currentUser.email}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 
@@ -334,23 +386,25 @@ export default function TaskDetailPage() {
                   ) : (
                     <>
                       {comments.map((comment, index) => {
-                        const isCurrentUser = comment.authorName === 'Current User';
+                        const isAuthor = isCurrentUserAuthor(comment.authorName);
                         const showAvatar = index === 0 || comments[index - 1].authorName !== comment.authorName;
                         
                         return (
-                          <div key={comment.id} className={`flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                            <div className={`flex-shrink-0 ${showAvatar ? '' : 'invisible'}`}>
+                          <div key={comment.id} className={`flex gap-3 ${isAuthor ? 'flex-row-reverse' : ''}`}>
+                            {/* Always show avatar for other users */}
+                            <div className={`flex-shrink-0 ${!isAuthor || showAvatar ? '' : 'invisible'}`}>
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={comment.authorAvatar} />
                                 <AvatarFallback className="text-xs">
-                                  {comment.authorName.split(' ').map(n => n[0]).join('')}
+                                  {getUserInitials(comment.authorName)}
                                 </AvatarFallback>
                               </Avatar>
                             </div>
                             
-                            <div className={`max-w-[70%] ${isCurrentUser ? 'text-right' : ''}`}>
-                              {showAvatar && (
-                                <div className={`flex items-center gap-2 mb-1 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                            <div className={`max-w-[70%] ${isAuthor ? 'text-right' : ''}`}>
+                              {/* Always show name for other users or first message in a group */}
+                              {(!isAuthor || showAvatar) && (
+                                <div className={`flex items-center gap-2 mb-1 ${isAuthor ? 'flex-row-reverse' : ''}`}>
                                   <span className="text-xs font-medium">{comment.authorName}</span>
                                   <span className="text-xs text-muted-foreground">
                                     {formatTime(comment.createdAt)}
@@ -360,7 +414,7 @@ export default function TaskDetailPage() {
                               
                               <div className={`
                                 rounded-2xl px-3 py-2 text-sm
-                                ${isCurrentUser 
+                                ${isAuthor 
                                   ? 'bg-primary text-primary-foreground' 
                                   : 'bg-muted'
                                 }
@@ -373,11 +427,13 @@ export default function TaskDetailPage() {
                       })}
                       
                       {/* Typing indicator */}
-                      {isTyping && (
+                      {isTyping && currentUser && (
                         <div className="flex gap-3">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src="https://ui-avatars.com/api/?name=Current+User&background=3b82f6" />
-                            <AvatarFallback className="text-xs">CU</AvatarFallback>
+                            <AvatarImage src={currentUser.image || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getUserInitials(currentUser.name || currentUser.email || 'U')}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="bg-muted rounded-2xl px-3 py-2">
                             <div className="flex space-x-1">
@@ -395,35 +451,43 @@ export default function TaskDetailPage() {
                 
                 {/* Chat Input */}
                 <div className="border-t p-4">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1 relative">
-                      <Textarea
-                        placeholder="Type your message..."
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        rows={1}
-                        className="resize-none min-h-[40px] max-h-[120px] pr-20"
-                      />
-                      <div className="absolute right-2 top-2 flex items-center gap-1">
+                  {currentUser ? (
+                    <>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1 relative">
+                          <Textarea
+                            placeholder="Type your message..."
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            rows={1}
+                            className="resize-none min-h-[40px] max-h-[120px] pr-20"
+                          />
+                          <div className="absolute right-2 top-2 flex items-center gap-1">
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={handleAddComment}
+                          disabled={!newComment.trim() || submittingComment}
+                          size="sm"
+                          className="h-10"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
                       </div>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Press Enter to send, Shift+Enter for new line
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center p-4">
+                      <p className="text-sm text-muted-foreground">Please sign in to post messages</p>
                     </div>
-                    <Button 
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim() || submittingComment}
-                      size="sm"
-                      className="h-10"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    Press Enter to send, Shift+Enter for new line
-                  </div>
+                  )}
                 </div>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -508,15 +572,15 @@ export default function TaskDetailPage() {
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-muted-foreground">3 members online</span>
+                <span className="text-muted-foreground">{currentUser ? '1 member online' : '0 members online'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-muted-foreground">Last activity: 2 min ago</span>
+                <span className="text-muted-foreground">Last activity: {comments.length > 0 ? formatTime(comments[comments.length - 1].createdAt) : 'None'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">{comments.length} messages today</span>
+                <span className="text-muted-foreground">{comments.length} messages total</span>
               </div>
             </CardContent>
           </Card>
