@@ -9,10 +9,20 @@ export const GET = requireAuth(async (req: NextRequest, user: AuthenticatedUser)
   try {
     const { searchParams } = new URL(req.url);
     const unreadOnly = searchParams.get("unread") === "true";
+    const archivedOnly = searchParams.get("archived") === "true";
+    const includeArchived = searchParams.get("includeArchived") === "true";
 
     const conditions = [eq(notification.userId, user.id)];
+    
     if (unreadOnly) {
       conditions.push(eq(notification.isRead, false));
+    }
+    
+    if (archivedOnly) {
+      conditions.push(eq(notification.isArchived, true));
+    } else if (!includeArchived) {
+      // By default, exclude archived notifications unless specifically requested
+      conditions.push(eq(notification.isArchived, false));
     }
 
     const notifications = await db
