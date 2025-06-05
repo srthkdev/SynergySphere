@@ -245,7 +245,7 @@ export function Header() {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings" className="cursor-pointer">
+                  <Link href="/settings#profile" className="cursor-pointer">
                     <div className="flex flex-col">
                       <span>Settings</span>
                       <span className="text-xs text-muted-foreground">

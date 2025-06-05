@@ -210,7 +210,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-                <SignupButton href="/login">
+                <SignupButton href="/dashboard">
                   Get Started Free
                 </SignupButton>
                 <button 

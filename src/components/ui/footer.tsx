@@ -44,7 +44,7 @@ export default function Footer() {
                 <Github className="h-5 w-5 transition-transform group-hover:scale-110" />
               </Link>
               <Link
-                href="https://x.com/sarthxk20/"
+                href="https://x.com/srthkdev/"
                 className="group rounded-full p-2 transition-colors hover:bg-blue-200/50 text-gray-800"
                 target="_blank"
                 rel="noopener"
@@ -52,7 +52,7 @@ export default function Footer() {
                 <X className="h-5 w-5 transition-transform group-hover:scale-110" />
               </Link>
               <Link
-                href="https://www.linkedin.com/in/sarthak-jain-32b114228/"
+                href="https://www.linkedin.com/in/srthkdev/"
                 className="group rounded-full p-2 transition-colors hover:bg-blue-200/50 text-gray-800"
                 target="_blank"
                 rel="noopener"
@@ -66,12 +66,12 @@ export default function Footer() {
             <p className="text-sm text-gray-700">
               Made with <Heart className="inline h-3 w-3 text-red-500" /> by{" "}
               <Link
-                href="https://github.com/srthkdev/"
+                href="https://github.com/srthkdev/SynergySphere"
                 className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
                 target="_blank"
                 rel="noopener"
               >
-                Team no. 425
+                Team no. 425 (Sarthak, Adarsh, Somanth, Akash)
               </Link>
             </p>
           </aside>
