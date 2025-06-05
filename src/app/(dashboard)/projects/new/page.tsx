@@ -38,6 +38,8 @@ interface ProjectData {
   createBudget: boolean;
   budgetAmount: number;
   budgetCurrency: string;
+  imageBase64?: string;
+  imageType?: string;
 }
 
 interface User {
@@ -125,28 +127,39 @@ export default function NewProjectPage() {
       return;
     }
 
-    const uploadToastId = toast.loading("Uploading image...");
+    const uploadToastId = toast.loading("Processing image...");
     
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Convert the file to base64 directly in the browser
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
       
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      reader.onload = () => {
+        const result = reader.result as string;
+        // The full data URL (e.g., "data:image/jpeg;base64,/9j/4AAQ...")
+        const dataUrl = result;
+        
+        // Extract just the base64 part without the prefix
+        const base64Data = result.split(',')[1];
+        
+        // Update the form data with both the data URL and the base64 data
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: dataUrl,
+          imageBase64: base64Data,
+          imageType: file.type
+        }));
+        
+        toast.success("Image processed successfully!", { id: uploadToastId });
+      };
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Image upload failed");
-      }
-      
-      const result = await response.json();
-      handleInputChange('imageUrl', result.imageUrl);
-      toast.success("Image uploaded successfully!", { id: uploadToastId });
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+        toast.error("Failed to process image", { id: uploadToastId });
+      };
     } catch (error: any) {
-      console.error('Image upload error:', error);
-      toast.error(error.message || "Image upload failed", { id: uploadToastId });
+      console.error('Image processing error:', error);
+      toast.error(error.message || "Image processing failed", { id: uploadToastId });
     }
   };
 
@@ -161,25 +174,41 @@ export default function NewProjectPage() {
     setLoading(true);
     
     try {
+      // Format the deadline to ISO string if it exists
+      const formattedDeadline = formData.deadline ? new Date(formData.deadline).toISOString() : undefined;
+      
+      // Prepare project data
+      const projectData: any = {
+        name: formData.name,
+        description: formData.description,
+        status: formData.status,
+        priority: formData.priority,
+        tags: formData.tags.length > 0 ? formData.tags.join(',') : undefined,
+        managerId: formData.managerId || undefined,
+        deadline: formattedDeadline,
+        createBudget: formData.createBudget,
+        budgetAmount: formData.budgetAmount,
+        budgetCurrency: formData.budgetCurrency,
+      };
+      
+      // Include image data if available
+      if (formData.imageUrl) {
+        projectData.imageUrl = formData.imageUrl;
+        
+        // If we have base64 data from our direct processing, include it
+        if (formData.imageBase64 && formData.imageType) {
+          projectData.imageBase64 = formData.imageBase64;
+          projectData.imageType = formData.imageType;
+        }
+      }
+      
       // Create the project first
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          status: formData.status,
-          priority: formData.priority,
-          tags: formData.tags.length > 0 ? formData.tags : null,
-          managerId: formData.managerId || null,
-          deadline: formData.deadline || null,
-          imageUrl: formData.imageUrl || null,
-          createBudget: formData.createBudget,
-          budgetAmount: formData.budgetAmount,
-          budgetCurrency: formData.budgetCurrency,
-        }),
+        body: JSON.stringify(projectData),
       });
 
       if (!response.ok) {

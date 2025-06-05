@@ -28,7 +28,18 @@ export const POST = requireAuth(async (request: NextRequest, user: Authenticated
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const { name, description, status, priority, tags, managerId, deadline, imageUrl } = validation.data;
+    const { 
+      name, 
+      description, 
+      status, 
+      priority, 
+      tags, 
+      managerId, 
+      deadline, 
+      imageUrl,
+      imageBase64,
+      imageType 
+    } = validation.data;
 
     const [newProject] = await db.insert(project).values({
       name,
@@ -39,6 +50,8 @@ export const POST = requireAuth(async (request: NextRequest, user: Authenticated
       managerId: managerId || null,
       deadline: deadline ? new Date(deadline) : null,
       imageUrl: imageUrl || null,
+      imageBase64: imageBase64 || null,
+      imageType: imageType || null,
       createdById: user.id,
     }).returning();
 
@@ -87,6 +100,19 @@ export const PUT = requireAuth(async (request: NextRequest, user: AuthenticatedU
     // Convert deadline string to Date if provided
     if (validation.data.deadline !== undefined) {
       updateData.deadline = validation.data.deadline ? new Date(validation.data.deadline) : null;
+    }
+    
+    // Handle image data
+    if (validation.data.imageUrl !== undefined) {
+      updateData.imageUrl = validation.data.imageUrl || null;
+    }
+    
+    if (validation.data.imageBase64 !== undefined) {
+      updateData.imageBase64 = validation.data.imageBase64 || null;
+      // If we're updating base64 data, also update the image type if provided
+      if (validation.data.imageType !== undefined) {
+        updateData.imageType = validation.data.imageType || null;
+      }
     }
     
     const [updatedProject] = await db

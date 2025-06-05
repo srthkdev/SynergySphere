@@ -385,12 +385,12 @@ export default function ProjectsPage() {
               
               {currentView === 'list' && (
                 <ListView
-                  items={filteredProjects}
+                  items={filteredProjects as any}
                   type="projects"
                   onItemUpdate={handleProjectUpdate}
-                  onItemClick={handleProjectClick}
-                  onEdit={handleProjectEdit}
-                  onDelete={handleProjectDelete}
+                  onItemClick={handleProjectClick as any}
+                  onEdit={handleProjectEdit as any}
+                  onDelete={handleProjectDelete as any}
                 />
               )}
             </div>

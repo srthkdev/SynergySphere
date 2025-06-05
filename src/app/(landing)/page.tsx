@@ -1,187 +1,330 @@
-"use client";
+'use client'
+import Image from 'next/image'
+import { DotPattern } from '@/components/ui/dot-pattern'
+import { Header } from '@/components/ui/header'
+import { ColorfulText } from '@/components/ui/colourful-text'
+import { SignupButton } from '@/components/ui/signup-button'
+import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
+import { cn } from "@/lib/utils"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { LayoutDashboard, Edit3, ListChecks, BarChart3, PieChart, FileImage, BookOpen, Plug, Settings } from "lucide-react"
+import { Linkedin, Github, X } from "lucide-react";
+import Footer from "@/components/ui/footer";
+import { PricingSection } from "@/components/ui/pricing-section";
+import { ChevronDown } from "lucide-react";
+import dynamic from 'next/dynamic'
+import ThemeToggler from '@/components/theme/toggler';
+import { ThemeProvider } from '@/components/theme/provider';
+import { useTheme } from 'next-themes'
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { siteConfig } from "@/config/site.config";
-import { cn } from "@/lib/utils";
-import { ArrowRight, Sparkle, Github, ArrowUpRight, ListChecks, MessageSquare, BarChart3, PackageSearch, AlertTriangle, Users2, Target, Rocket, ClipboardCheck, MessagesSquare } from "lucide-react";
-import Link from "next/link";
-import { useSession } from "@/lib/auth/auth-client";
+// Lazily load heavy components
+const MarqueeDemo = dynamic(() => import('@/components/magicui/marquee').then(mod => ({ default: mod.MarqueeDemo })), {
+  loading: () => <div className="w-full h-[200px] flex items-center justify-center">Loading testimonials...</div>,
+  ssr: false
+})
 
-import { UserProfile } from "@/components/user-profile";
-import ThemeToggler from "@/components/theme/toggler";
+const WobbleCardDemo = dynamic(() => import('@/components/ui/wobble-card').then(mod => ({ default: mod.WobbleCardDemo })), {
+  loading: () => <div className="w-full h-[200px] flex items-center justify-center">Loading...</div>,
+  ssr: false
+})
 
-export default function Home() {
-  const { data: session, isPending } = useSession();
-
+// TabContent component for placeholder PNG and title
+function TabContent({ title }: { title: string }) {
   return (
-    
-       <div className="flex-1 flex flex-col">
-            <div id="nav" className="w-full flex items-center justify-end border-b border-dashed divide-x">
-              <div id="brand" className="font-mono text-sm flex-1 flex items-center h-full px-3 border-dashed">
-                SynergySphere
-              </div>
-              {!isPending && (session ? (
-                <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
-                  <Link href="/dashboard" className="flex items-center gap-2 group/nav">
-                    <span>Dashboard</span>
-                    <div className="relative z-10 size-4 overflow-hidden flex items-center justify-center">
-                      <ArrowUpRight className="-z-10 absolute opacity-100 scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/nav:-translate-y-5 group-hover/nav:translate-x-5 group-hover/nav:opacity-0 group-hover/nav:scale-0 transition-all duration-200" />
-                      <ArrowUpRight className="absolute -z-10 -bottom-4 -left-4 opacity-0 scale-0 group-hover/nav:-translate-y-[15px] group-hover/nav:translate-x-4 group-hover/nav:opacity-100 group-hover/nav:scale-100 transition-all duration-200" />
-                    </div>
-                  </Link>
-                </Button>
-              ) : (
-                <Button className="h-full border-dashed" size="lg" variant="ghost" asChild>
-                  <Link href="/login" className="flex items-center gap-2 group/nav">
-                    <span>Sign In</span>
-                    <div className="relative z-10 size-4 overflow-hidden flex items-center justify-center">
-                      <ArrowUpRight className="-z-10 absolute opacity-100 scale-100 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/nav:-translate-y-5 group-hover/nav:translate-x-5 group-hover/nav:opacity-0 group-hover/nav:scale-0 transition-all duration-200" />
-                      <ArrowUpRight className="absolute -z-10 -bottom-4 -left-4 opacity-0 scale-0 group-hover/nav:-translate-y-[15px] group-hover/nav:translate-x-4 group-hover/nav:opacity-100 group-hover/nav:scale-100 transition-all duration-200" />
-                    </div>
-                  </Link>
-                </Button>
-              ))}
-              <UserProfile className="border-dashed size-10 md:size-14" />
-              <ThemeToggler className="border-dashed size-10 md:size-14" />
-            </div>
-      <div className="w-full max-w-7xl mx-auto border border-dashed flex flex-col my-2">
-        <div id="hero" className="flex flex-col p-8 md:p-12 items-center text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-heading tracking-tight mb-6">{siteConfig.name}</h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mb-8">{siteConfig.description}</p>
-          <div id="cta" className="flex items-center justify-center gap-4">
-            <Button size="lg" asChild>
-              <Link href="/sign-up" className="gap-2 group">
-                <span>Get Started Free</span>
-                  <ArrowRight className="size-4 group-hover:translate-x-1 transition-all duration-150" />
-                </Link>
-              </Button>
-            <Button size="lg" variant="outline" asChild className="relative border-dashed">
-              <a href={siteConfig.socials.github} target="_blank" rel="noopener noreferrer" className="gap-2 group">
-                <Github className="size-4" />
-                <span>View on GitHub</span>
-              </a>
-            </Button>
-          </div>
-        </div>
-        <section id="how" className="py-12 md:py-16 lg:py-20">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Get Going in Minutes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {howItWorksConfig.map((step, index) => (
-                <div
-                  key={index}
-                  className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item flex flex-col items-center text-center"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full mb-4 group-hover/item:scale-110 transition-transform duration-300">
-                    {step.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold font-heading tracking-tight mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {step.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        <section id="features" className="py-12 md:py-16 lg:py-20">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Core Pillars of SynergySphere</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {featureConfig.map((feature, index) => (
-                <div
-                  key={index}
-                  className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="p-2 bg-primary/10 rounded-md group-hover/item:scale-110 transition-transform duration-300">{feature.icon}</span>
-                    <h3 className="text-xl font-semibold font-heading tracking-tight">{feature.name}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        <section id="pricing" className="py-12 md:py-16 lg:py-20 bg-muted/30">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 font-heading">Stop Headaches, Start Collaborating</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {painPointsConfig.map((item, index) => (
-                <div
-                  key={index}
-                  className="relative w-full p-6 bg-card hover:shadow-lg transition-all duration-300 rounded-lg border border-dashed group/item"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="p-2 bg-primary/10 rounded-md group-hover/item:scale-110 transition-transform duration-300">{item.icon}</span>
-                    <h3 className="text-xl font-semibold font-heading tracking-tight">{item.title}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+    <div className="flex flex-col items-center justify-center py-12">
+      {/* Placeholder for PNG */}
+      <div className="w-[900px] h-[540px] flex items-center justify-center mb-2">
+        <Image src="/placeholder.png" alt="placeholder" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
       </div>
+      
     </div>
   )
 }
 
-const featureConfig = [
+// FAQ Section Components
+import React from "react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/custom-accordion";
+
+// Update FAQS for SynergySphere
+const FAQS = [
   {
-    icon: <ListChecks className="size-6 text-primary" />,
-    name: "Task & Project Management",
-    description: "Create projects, add members, assign tasks with deadlines, and track progress from To-Do to Done.",
+    question: "What is SynergySphere?",
+    answer: "SynergySphere is an intelligent task management system that acts as your team's central nervous system—helping you organize work, communicate effectively, and deliver results by proactively addressing common team challenges.",
   },
   {
-    icon: <MessageSquare className="size-6 text-primary" />,
-    name: "Team Communication",
-    description: "Engage in project-specific threaded discussions to keep conversations organized and context-rich.",
+    question: "How does SynergySphere solve scattered information problems?",
+    answer: "SynergySphere brings all your important files, conversations, and decisions into one unified platform, making it easy to find what you need when you need it—no more hunting through multiple tools.",
   },
   {
-    icon: <BarChart3 className="size-6 text-primary" />,
-    name: "Progress Visualization",
-    description: "Visualize task progress with intuitive boards and lists to understand project status at a glance.",
+    question: "How does SynergySphere prevent deadline surprises?",
+    answer: "Our system proactively monitors project progress and surfaces potential issues before they become problems, giving you time to adjust resources or timelines before deadlines are at risk.",
+  },
+  {
+    question: "How does SynergySphere handle resource management?",
+    answer: "SynergySphere provides clear visibility into team capacity and workloads, ensuring team members are neither overworked nor underutilized, with transparent assignment tracking and intelligent resource allocation.",
+  },
+  {
+    question: "How does SynergySphere improve team communication?",
+    answer: "By connecting conversations directly to tasks and projects, SynergySphere ensures updates don't get missed and everyone stays in the loop—eliminating the communication gaps that slow teams down.",
   },
 ];
 
-const painPointsConfig = [
-  {
-    icon: <PackageSearch className="size-6 text-primary" />,
-    title: "Unified Workspace, Clear Communication",
-    description: "Tired of scattered files and missed updates? SynergySphere brings all your project assets, discussions, and decisions into one organized hub, ensuring everyone stays informed."
-  },
-  {
-    icon: <AlertTriangle className="size-6 text-primary" />,
-    title: "Track Progress, Prevent Surprises",
-    description: "Gain crystal-clear visibility into task progress and project timelines. Proactively identify bottlenecks and stay ahead of deadlines before they become urgent issues."
-  },
-  {
-    icon: <Users2 className="size-6 text-primary" />,
-    title: "Optimize Resources, Clarify Roles",
-    description: "Streamline assignments and manage team capacity effectively. Ensure team members are utilized optimally with clear responsibilities, avoiding burnout and confusion."
-  }
-];
+const SectionBadge = ({ title }: { title: string }) => (
+  <div className="flex justify-center items-center gap-2 bg-blue-100 px-2.5 py-1 rounded-full">
+    <div className="relative flex justify-center items-center bg-blue-400/40 rounded-full w-1.5 h-1.5">
+      <div className="flex justify-center items-center bg-blue-500 rounded-full w-2 h-2 animate-ping">
+        <div className="flex justify-center items-center bg-blue-500 rounded-full w-2 h-2 animate-ping"></div>
+      </div>
+      <div className="top-1/2 left-1/2 absolute flex justify-center items-center bg-blue-600 rounded-full w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2"></div>
+    </div>
+    <span className="bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800 font-medium text-transparent text-xs">
+      {title}
+    </span>
+  </div>
+);
 
-const howItWorksConfig = [
-  {
-    icon: <Rocket className="size-7 text-primary" />,
-    title: "1. Create & Define",
-    description: "Kickstart your projects, outline clear objectives, and easily invite your team members to collaborate."
-  },
-  {
-    icon: <ClipboardCheck className="size-7 text-primary" />,
-    title: "2. Assign & Track",
-    description: "Assign tasks with clear owners and due dates. Monitor progress with intuitive Kanban boards or lists."
-  },
-  {
-    icon: <MessagesSquare className="size-7 text-primary" />,
-    title: "3. Collaborate & Deliver",
-    description: "Engage in focused discussions, share files, and keep everyone aligned to deliver results efficiently."
-  }
-];
+const AnimationContainer = ({
+  children,
+  className,
+  animation = "fadeUp",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  animation?: "fadeUp" | "fadeDown" | "fadeLeft" | "fadeRight" | "scaleUp";
+  delay?: number;
+}) => {
+  // Simple implementation without animations
+  const delayStyle = {
+    animationDelay: `${delay * 0.2}s`
+  };
+  
+  return (
+    <div 
+      className={cn(
+        "animate-fade-in", 
+        {
+          "animate-fade-in-up": animation === "fadeUp",
+          "animate-fade-in-down": animation === "fadeDown",
+          "animate-fade-in-left": animation === "fadeLeft",
+          "animate-fade-in-right": animation === "fadeRight",
+          "animate-scale-in": animation === "scaleUp",
+        },
+        className
+      )}
+      style={delayStyle}
+    >
+      {children}
+    </div>
+  );
+};
+
+const Wrapper = ({ className, children }: { className?: string; children: React.ReactNode }) => (
+  <section className={cn("h-full mx-auto w-full lg:max-w-screen-xl px-4 lg:px-20", className)}>
+    {children}
+  </section>
+);
+
+function FAQSection() {
+  return (
+    <Wrapper className="py-20 lg:py-32">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <AnimationContainer animation="fadeUp" delay={0.2}>
+          <SectionBadge title="FAQ" />
+        </AnimationContainer>
+        <AnimationContainer animation="fadeUp" delay={0.3}>
+          <h2 className="font-black text-3xl md:text-4xl lg:text-5xl text-gray-900">
+            Frequently Asked Questions
+          </h2>
+        </AnimationContainer>
+        <AnimationContainer animation="fadeUp" delay={0.4}>
+          <p className="mx-auto max-w-xl text-gray-600 text-base md:text-lg">
+            Find answers to common questions about how SynergySphere solves your team's biggest task management and collaboration challenges.
+          </p>
+        </AnimationContainer>
+      </div>
+      <div className="mx-auto pt-10 max-w-3xl">
+        <Accordion type="single" collapsible className="space-y-4 w-full">
+          {FAQS.map((item, index) => (
+            <AnimationContainer
+              key={index}
+              animation="fadeUp"
+              delay={0.5 + index * 0.1}
+            >
+              <AccordionItem
+                value={`item-${index}`}
+                className="bg-blue-50/50 px-6 border border-blue-100 rounded-2xl"
+              >
+                <AccordionTrigger className="py-6 font-medium text-gray-900 text-base md:text-lg text-left hover:no-underline">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-700 text-left">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            </AnimationContainer>
+          ))}
+        </Accordion>
+      </div>
+    </Wrapper>
+  );
+}
+
+export default function Home() {
+  const { resolvedTheme } = useTheme();
+  // Determine background color based on theme
+  const bgColor = resolvedTheme === 'dark' ? 'bg-neutral-950' : 'bg-white';
+  const dotColor = resolvedTheme === 'dark' ? '#23272f' : '#e5e7eb';
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+      <div className={`relative w-full min-h-screen flex flex-col transition-colors duration-300 ${bgColor}`}>
+        <DotPattern
+          className="absolute inset-0 w-full h-full z-0"
+          glow={false}
+          width={18}
+          height={18}
+          maxDots={12000}
+          cr={1}
+          color={dotColor}
+        />
+        {/* Theme toggler in top-right */}
+        <div className="relative z-10 flex flex-col w-full min-h-screen">
+          <Header />
+          {/* Hero Section */}
+          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20 flex flex-col items-center justify-center">
+            <div className="max-w-4xl mx-auto text-center">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-gray-900 dark:text-white">
+                Your Team's <ColorfulText text="Intelligent" /> Task Management System
+              </h1>
+              <p className="text-base text-gray-600 dark:text-gray-300 mb-6 max-w-xl mx-auto leading-snug">
+                SynergySphere orchestrates your team's work intelligently. Eliminate scattered information, track progress clearly, manage resources effectively, prevent deadline surprises, and close communication gaps—all in one unified platform.
+              </p>
+              <div className="flex justify-center mb-6">
+                <div className={cn(
+                  "group rounded-full border border-gray-200 bg-white text-base transition-all ease-in hover:cursor-pointer hover:bg-gray-50 hover:shadow-sm"
+                )}>
+                  <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 transition ease-out text-gray-800 font-medium hover:text-neutral-600 hover:duration-300 hover:dark:text-neutral-400">
+                    <span>✨ Powered by</span>
+                    <Image src="/odoo.png" alt="Odoo" width={40} height={18} className="inline-block mx-1" />
+                  </AnimatedShinyText>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
+                <SignupButton href="/login">
+                  Get Started Free
+                </SignupButton>
+                <button 
+                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-blue-50 text-blue-600 text-sm font-medium py-3 px-8 rounded-md transition-colors border border-blue-100 hover:bg-blue-100"
+                >
+                  Explore Features
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Tabs Section */}
+          <div id="features" className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-15 flex flex-col items-center justify-center">
+            <Tabs defaultValue="overview" className="w-full max-w-4xl">
+              <TabsList className="flex flex-wrap justify-center items-center gap-2 mb-6 bg-transparent p-0 w-full">
+                <TabsTrigger value="overview" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+                  <LayoutDashboard className="w-5 h-5" /> Overview
+                </TabsTrigger>
+                <TabsTrigger value="task-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+                  <Edit3 className="w-5 h-5" /> Task Management
+                </TabsTrigger>
+                <TabsTrigger value="team-communication" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+                  <ListChecks className="w-5 h-5" /> Team Communication
+                </TabsTrigger>
+                <TabsTrigger value="resource-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+                  <BarChart3 className="w-5 h-5" /> Resource Management
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+                  <PieChart className="w-5 h-5" /> Analytics
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="overview">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                    <Image src="/placeholder.png" alt="overview" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+                  </div>
+                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
+                    SynergySphere acts as your team's central nervous system—bringing scattered information together, providing clear visibility into progress, and helping you stay ahead of deadlines instead of constantly reacting.
+                  </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="task-management">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                    <Image src="/placeholder.png" alt="task management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+                  </div>
+                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
+                    Our intelligent task management system proactively surfaces potential issues before they become problems. Optimize resource allocation, prevent deadline surprises, and ensure your team is always working on what matters most.
+                  </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="team-communication">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                    <Image src="/placeholder.png" alt="team communication" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+                  </div>
+                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
+                    Close communication gaps with integrated team discussions. Keep everyone in the loop with contextual conversations tied directly to tasks, preventing important updates from getting buried in email or lost in scattered chats.
+                  </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="resource-management">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                    <Image src="/placeholder.png" alt="resource management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+                  </div>
+                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
+                    Eliminate resource overload and confusion with intelligent workload balancing. Ensure team members are neither overworked nor underutilized, with clear assignments and transparent capacity planning.
+                  </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="analytics">
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                    <Image src="/placeholder.png" alt="analytics" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+                  </div>
+                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
+                    Gain crystal-clear visibility into project progress with powerful analytics. Identify bottlenecks before they impact deadlines, track team performance, and make data-driven decisions that keep work flowing smoothly.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          {/* Wall Of Love Section */}
+          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center">
+            <span className="text-[15px] font-semibold text-orange-600 mb-3" style={{letterSpacing: 0}}>What our users say about working with SynergySphere</span>
+            <h2
+              className="text-[44px] leading-tight font-black text-neutral-900 mb-10"
+              style={{ fontFamily: 'Satoshi, sans-serif' }}
+            >
+              Wall of love
+            </h2>
+            <div className="w-full max-w-5xl">
+              <MarqueeDemo />
+            </div>
+          </div>
+          {/* Pricing Section */}
+          <div id="pricing" className="max-w-7xl w-full mx-auto">
+            <PricingSection />
+          </div>
+          {/* Wobble Card Section */}
+          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center">
+            <WobbleCardDemo />
+          </div>
+          {/* FAQ Section */}
+          <div id="faq" className="w-full">
+            <FAQSection />
+          </div>
+          {/* Footer */}
+          <div className="w-full">
+            <Footer />
+          </div>
+        </div>
+      </div>
+    </ThemeProvider>
+  )
+}

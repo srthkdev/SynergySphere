@@ -9,7 +9,9 @@ export const createProjectSchema = z.object({
   tags: z.string().optional(), // JSON string of tags array
   managerId: z.string().nullable().optional(), // Project manager user ID
   deadline: z.string().datetime().nullable().optional(), // ISO datetime string
-  imageUrl: z.string().url().optional().or(z.literal("")), // Project image URL
+  imageUrl: z.string().optional().or(z.literal("")), // Project image URL (can be data URL or external URL)
+  imageBase64: z.string().optional(), // Base64 encoded image data
+  imageType: z.string().optional(), // MIME type of the image
 });
 
 export const updateProjectSchema = z.object({
@@ -20,7 +22,9 @@ export const updateProjectSchema = z.object({
   tags: z.string().optional(), // JSON string of tags array
   managerId: z.string().nullable().optional(), // Project manager user ID
   deadline: z.string().datetime().nullable().optional(), // ISO datetime string
-  imageUrl: z.string().url().optional().or(z.literal("")), // Project image URL
+  imageUrl: z.string().optional().or(z.literal("")), // Project image URL (can be data URL or external URL)
+  imageBase64: z.string().optional(), // Base64 encoded image data
+  imageType: z.string().optional(), // MIME type of the image
 });
 
 // Task validation schemas

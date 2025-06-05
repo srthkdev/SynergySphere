@@ -121,6 +121,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Satoshi', 'Inter', 'Geist', 'sans-serif';
   }
 }
 
@@ -170,4 +171,29 @@
   to {
     clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
   }
+}
+
+/* Marquee Animations for Wall of Love */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+@keyframes marquee-reverse {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+.animate-marquee {
+  animation: marquee var(--duration, 20s) linear infinite;
+}
+.animate-marquee-reverse {
+  animation: marquee-reverse var(--duration, 20s) linear infinite;
+}
+
+/* Font and container tweaks for pixel-perfect match */
+.container {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }

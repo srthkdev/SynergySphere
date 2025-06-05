@@ -1,16 +1,26 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
+import { useTheme } from 'next-themes';
 
 export function ColorfulText({ text }: { text: string }) {
+  const { resolvedTheme } = useTheme();
   // Blue-themed colors that match the UI
-  const colors = [
+  const lightColors = [
     "rgb(37, 99, 235)",  // blue-600
     "rgb(59, 130, 246)", // blue-500
     "rgb(96, 165, 250)", // blue-400
     "rgb(59, 130, 246)", // blue-500
     "rgb(37, 99, 235)",  // blue-600
   ];
+  const darkColors = [
+    "#60a5fa", // blue-400
+    "#93c5fd", // blue-300
+    "#bae6fd", // blue-200
+    "#93c5fd", // blue-300
+    "#60a5fa", // blue-400
+  ];
+  const colors = resolvedTheme === 'dark' ? darkColors : lightColors;
 
   const [count, setCount] = React.useState(0);
 

@@ -61,7 +61,9 @@ export const project = pgTable("project", {
   managerId: text("manager_id")
     .references(() => user.id, { onDelete: "set null" }), // Project manager
   deadline: timestamp("deadline"), // Project deadline
-  imageUrl: text("image_url"), // Project image/logo
+  imageUrl: text("image_url"), // Project image/logo URL (can be data URL or external URL)
+  imageBase64: text("image_base64"), // Base64 encoded image data
+  imageType: text("image_type"), // MIME type of the image
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   createdById: text("created_by_id")

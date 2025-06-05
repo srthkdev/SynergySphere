@@ -22,14 +22,14 @@ export default function Footer() {
         <section className="flex-1">
           <aside className="flex flex-col gap-[10px]">
             <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="FLUX Logo" width={38} height={38} className="rounded" />
+              <Image src="/logo.png" alt="Sync Logo" width={38} height={38} className="rounded" />
               <p className="font-secondary text-xl font-extrabold tracking-tight md:text-4xl text-gray-900">
-                FLUX
+                SynergySphere
                 <span className="text-blue-600">.</span>
               </p>
             </div>
             <p className="text-sm text-gray-700">
-              Superintelligent forms & insights, powered by AI.
+              Intelligent task management for high-performing teams.
             </p>
           </aside>
 
@@ -71,7 +71,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener"
               >
-                Sarthak
+                Team no. 425
               </Link>
             </p>
           </aside>

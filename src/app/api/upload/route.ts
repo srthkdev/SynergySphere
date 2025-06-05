@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,43 +25,34 @@ export async function POST(request: NextRequest) {
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 5MB." },
+        { error: "File size too large. Maximum size is 5MB." },
         { status: 400 }
       );
     }
     
-    // Generate a unique file name with proper extension
-    const fileExtension = file.name.split(".").pop() || "";
-    const sanitizedExtension = fileExtension.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const fileName = `${uuidv4()}.${sanitizedExtension || "png"}`;
+    // Generate a unique ID for the file
+    const fileId = uuidv4();
     
-    // Ensure the uploads directory exists in public folder
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
+    // Convert the file to base64
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
     
-    // Convert the file to an ArrayBuffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Create a data URL that can be used directly in img tags
+    const dataUrl = `data:${file.type};base64,${base64Data}`;
     
-    // Write the file to the uploads directory
-    const filePath = path.join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
-    
-    // Create a URL path that will work in both development and production
-    const fileUrl = `/uploads/${fileName}`;
-    
-    console.log(`File saved successfully: ${filePath}`);
-    console.log(`File URL: ${fileUrl}`);
+    console.log(`File converted to base64 successfully: ${file.name}`);
     
     return NextResponse.json({ 
-      imageUrl: fileUrl,
+      imageUrl: dataUrl,
+      base64Data: base64Data,
       success: true,
-      fileName: fileName,
+      fileName: file.name,
       fileSize: file.size,
       fileType: file.type
     }, { status: 201 });
   } catch (error) {
-    console.error("Error uploading file:", error);
+    console.error("Error processing file:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
