@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Bell, CheckCircle, Clock, ArrowRight, BarChart3, Target, FileText, TrendingUp, TrendingDown, Folder, AlertTriangle } from "lucide-react";
+import { Plus, CheckCircle, Clock, ArrowRight, BarChart3, Target, FileText, TrendingUp, TrendingDown, Folder, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -227,10 +227,6 @@ export default function DashboardPage() {
 					</p>
 				</div>
 				<div className="flex items-center space-x-2">
-					<Button variant="outline">
-						<Bell className="mr-2 h-4 w-4" />
-						Notifications
-					</Button>
 					<Link href="/projects">
 						<Button>
 							<Plus className="mr-2 h-4 w-4" />

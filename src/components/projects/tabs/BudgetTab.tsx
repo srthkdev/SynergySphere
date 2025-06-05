@@ -287,7 +287,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       amount,
       description,
       category: category || 'general',
-      taskId: taskId || undefined
+      taskId: taskId === 'none' ? undefined : taskId || undefined
     });
   };
 
@@ -683,16 +683,16 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                   
                   <div>
                     <Label htmlFor="taskId">Related Task (Optional)</Label>
-                    <Select name="taskId">
+                    <Select name="taskId" defaultValue="none">
                       <SelectTrigger>
                         <SelectValue placeholder="Select a task (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {tasksLoading ? (
                           <SelectItem value="loading" disabled>Loading tasks...</SelectItem>
                         ) : projectTasks.length === 0 ? (
-                          <SelectItem value="none" disabled>No tasks available</SelectItem>
+                          <SelectItem value="no-tasks" disabled>No tasks available</SelectItem>
                         ) : (
                           projectTasks.map((task) => (
                             <SelectItem key={task.id} value={task.id}>
