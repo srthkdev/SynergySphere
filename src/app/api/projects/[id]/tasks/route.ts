@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { canAccessProject } from "@/lib/project-auth";
 import { validateRequestBody, createTaskSchema } from "@/lib/validation";
+import { createNotification } from "@/lib/notifications";
 
 // GET /api/projects/:id/tasks - Get all tasks for a specific project
 export const GET = async (request: NextRequest) => {
@@ -84,6 +85,23 @@ export const POST = async (request: NextRequest) => {
         priority,
         dueDate: dueDate ? new Date(dueDate) : null,
       }).returning();
+
+      // Create notification for task assignment
+      if (assigneeId && assigneeId !== user.id) {
+        // Get project details
+        const [projectInfo] = await db
+          .select({ name: project.name })
+          .from(project)
+          .where(eq(project.id, projectId));
+
+        await createNotification({
+          userId: assigneeId,
+          message: `You have been assigned a new task "${title}" in project "${projectInfo?.name || 'Unknown Project'}"`,
+          type: "task_assigned",
+          projectId,
+          taskId: newTask.id,
+        });
+      }
 
       return NextResponse.json(newTask, { status: 201 });
     } catch (error: any) {

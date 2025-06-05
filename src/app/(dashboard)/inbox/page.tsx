@@ -60,6 +60,7 @@ interface Notification {
   projectId?: string;
   taskId?: string;
   isRead: boolean;
+  isArchived: boolean;
   createdAt: string;
 }
 
@@ -165,13 +166,17 @@ export default function InboxPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { unreadCount: unreadMentions } = useChat();
 
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications');
+      const url = showArchived 
+        ? '/api/notifications?archived=true' 
+        : '/api/notifications';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setNotifications(data);
@@ -224,19 +229,32 @@ export default function InboxPage() {
   // Mark notification as read
   const markNotificationAsRead = async (notificationId: string) => {
     try {
+      // Optimistically update UI first
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, isRead: true } : n
+      ));
+
       const response = await fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: [notificationId] }),
       });
       
-      if (response.ok) {
+      if (!response.ok) {
+        // Revert the optimistic update on error
         setNotifications(notifications.map(n => 
-          n.id === notificationId ? { ...n, isRead: true } : n
+          n.id === notificationId ? { ...n, isRead: false } : n
         ));
+        toast.error('Failed to mark notification as read');
+      } else {
+        toast.success('Notification marked as read');
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      // Revert the optimistic update on error
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, isRead: false } : n
+      ));
       toast.error('Failed to mark notification as read');
     }
   };
@@ -244,19 +262,118 @@ export default function InboxPage() {
   // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
+      const unreadNotifications = notifications.filter(n => !n.isRead);
+      if (unreadNotifications.length === 0) {
+        toast.info('No unread notifications to mark');
+        return;
+      }
+
+      // Optimistically update UI first
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+
       const response = await fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markAllAsRead: true }),
       });
       
-      if (response.ok) {
-        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-        toast.success('All notifications marked as read');
+      if (!response.ok) {
+        // Revert the optimistic update on error
+        setNotifications(notifications.map(n => {
+          const wasUnread = unreadNotifications.find(unread => unread.id === n.id);
+          return wasUnread ? { ...n, isRead: false } : n;
+        }));
+        toast.error('Failed to mark all notifications as read');
+      } else {
+        toast.success(`Marked ${unreadNotifications.length} notifications as read`);
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       toast.error('Failed to mark all notifications as read');
+    }
+  };
+
+  // Archive notification
+  const archiveNotification = async (notificationId: string) => {
+    try {
+      // Optimistically update UI first
+      setNotifications(notifications.filter(n => n.id !== notificationId));
+
+      const response = await fetch('/api/notifications/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: [notificationId], archive: true }),
+      });
+      
+      if (!response.ok) {
+        // Revert the optimistic update on error
+        await refreshData();
+        toast.error('Failed to archive notification');
+      } else {
+        toast.success('Notification archived');
+      }
+    } catch (error) {
+      console.error('Error archiving notification:', error);
+      await refreshData();
+      toast.error('Failed to archive notification');
+    }
+  };
+
+  // Unarchive notification
+  const unarchiveNotification = async (notificationId: string) => {
+    try {
+      // Optimistically update UI first
+      setNotifications(notifications.filter(n => n.id !== notificationId));
+
+      const response = await fetch('/api/notifications/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: [notificationId], archive: false }),
+      });
+      
+      if (!response.ok) {
+        // Revert the optimistic update on error
+        await refreshData();
+        toast.error('Failed to unarchive notification');
+      } else {
+        toast.success('Notification unarchived');
+      }
+    } catch (error) {
+      console.error('Error unarchiving notification:', error);
+      await refreshData();
+      toast.error('Failed to unarchive notification');
+    }
+  };
+
+  // Archive all notifications
+  const archiveAllNotifications = async () => {
+    try {
+      const unArchivedNotifications = notifications.filter(n => !n.isArchived);
+      if (unArchivedNotifications.length === 0) {
+        toast.info('No notifications to archive');
+        return;
+      }
+
+      // Optimistically update UI first
+      setNotifications([]);
+
+      const response = await fetch('/api/notifications/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archiveAll: true }),
+      });
+      
+      if (!response.ok) {
+        // Revert the optimistic update on error
+        await refreshData();
+        toast.error('Failed to archive all notifications');
+      } else {
+        toast.success(`Archived ${unArchivedNotifications.length} notifications`);
+      }
+    } catch (error) {
+      console.error('Error archiving all notifications:', error);
+      await refreshData();
+      toast.error('Failed to archive all notifications');
     }
   };
 
@@ -270,9 +387,38 @@ export default function InboxPage() {
     setLoading(false);
   };
 
+  // Check for upcoming deadlines automatically
+  const checkDeadlines = async () => {
+    try {
+      const response = await fetch('/api/notifications/check-deadlines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daysAhead: 3 })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.count > 0) {
+          console.log(`Created ${data.count} deadline notifications`);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking deadlines:', error);
+    }
+  };
+
   useEffect(() => {
-    refreshData();
+    const loadData = async () => {
+      await checkDeadlines(); // Check deadlines first
+      await refreshData(); // Then refresh notifications
+    };
+    loadData();
   }, []);
+
+  // Refetch notifications when archive view changes
+  useEffect(() => {
+    fetchNotifications();
+  }, [showArchived]);
 
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
@@ -303,9 +449,14 @@ export default function InboxPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inbox</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {showArchived ? "Archived Notifications" : "Inbox"}
+          </h1>
           <p className="text-muted-foreground">
-            Stay updated with notifications and messages
+            {showArchived 
+              ? "View and manage your archived notifications" 
+              : "Stay updated with notifications and messages"
+            }
           </p>
         </div>
         <div className="flex gap-2">
@@ -316,6 +467,70 @@ export default function InboxPage() {
           <Button onClick={markAllAsRead} disabled={unreadNotifications === 0}>
             <Check className="mr-2 h-4 w-4" />
             Mark All Read
+          </Button>
+          {!showArchived && (
+            <Button 
+              variant="outline" 
+              onClick={archiveAllNotifications} 
+              disabled={notifications.filter(n => !n.isArchived).length === 0}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              Archive All
+            </Button>
+          )}
+          <Button 
+            variant={showArchived ? "default" : "outline"}
+            onClick={() => setShowArchived(!showArchived)}
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            {showArchived ? "Show Active" : "Show Archived"}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/notifications/check-deadlines', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ daysAhead: 3 })
+                });
+                if (response.ok) {
+                  const data = await response.json();
+                  toast.success(`Created ${data.count} deadline notifications`);
+                  await refreshData();
+                } else {
+                  toast.error('Failed to check deadlines');
+                }
+              } catch (error) {
+                toast.error('Failed to check deadlines');
+              }
+            }}
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            Check Deadlines
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/notifications/test', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'all' })
+                });
+                if (response.ok) {
+                  toast.success('Test notifications created');
+                  await refreshData();
+                } else {
+                  toast.error('Failed to create test notifications');
+                }
+              } catch (error) {
+                toast.error('Failed to create test notifications');
+              }
+            }}
+          >
+            <Bell className="mr-2 h-4 w-4" />
+            Add Test Notifications
           </Button>
         </div>
       </div>
@@ -423,10 +638,19 @@ export default function InboxPage() {
           ) : filteredNotifications.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No notifications</h3>
+                {showArchived ? (
+                  <Archive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                ) : (
+                  <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                )}
+                <h3 className="text-lg font-medium mb-2">
+                  {showArchived ? 'No archived notifications' : 'No notifications'}
+                </h3>
                 <p className="text-muted-foreground">
-                  {filter === 'all' ? 'You have no notifications yet' : `No ${filter} notifications`}
+                  {showArchived 
+                    ? 'You have no archived notifications yet' 
+                    : (filter === 'all' ? 'You have no notifications yet' : `No ${filter} notifications`)
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -447,9 +671,16 @@ export default function InboxPage() {
                         </div>
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center justify-between">
-                            <h3 className={`font-medium text-sm ${!notification.isRead ? 'font-semibold' : ''}`}>
-                              {notification.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                            </h3>
+                            <div className="flex items-center space-x-2">
+                              <h3 className={`font-medium text-sm ${!notification.isRead ? 'font-semibold' : ''}`}>
+                                {notification.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </h3>
+                              {notification.type === 'task_due_soon' && (
+                                <Badge variant="destructive" className="text-xs animate-pulse">
+                                  URGENT
+                                </Badge>
+                              )}
+                            </div>
                             <div className="flex items-center space-x-2">
                               <Badge className={getPriorityColor(priority)}>
                                 {priority}
@@ -463,18 +694,40 @@ export default function InboxPage() {
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {!notification.isRead && (
-                                    <DropdownMenuItem onClick={() => markNotificationAsRead(notification.id)}>
-                                      <Check className="mr-2 h-4 w-4" />
-                                      Mark as read
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem>
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Archive
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
+                                                                  <DropdownMenuContent align="end">
+                                    {!notification.isRead && (
+                                      <DropdownMenuItem 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          markNotificationAsRead(notification.id);
+                                        }}
+                                      >
+                                        <Check className="mr-2 h-4 w-4" />
+                                        Mark as read
+                                      </DropdownMenuItem>
+                                    )}
+                                    {showArchived ? (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          unarchiveNotification(notification.id);
+                                        }}
+                                      >
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Unarchive
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          archiveNotification(notification.id);
+                                        }}
+                                      >
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Archive
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
                           </div>

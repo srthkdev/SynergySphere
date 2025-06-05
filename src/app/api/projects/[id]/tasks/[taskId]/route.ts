@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { task, projectMember, taskStatusEnum } from "@/lib/db/schema";
+import { task, projectMember, taskStatusEnum, project } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getUser } from "@/lib/auth/auth-utils";
+import { createNotification } from "@/lib/notifications";
 
 // Helper function to check project membership
 async function verifyProjectMembership(projectId: string, userId: string) {
@@ -79,9 +80,15 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden: You are not a member of this project" }, { status: 403 });
     }
 
-    // Check if task exists and belongs to the project
+    // Check if task exists and belongs to the project - get more details for notifications
     const [existingTask] = await db
-      .select()
+      .select({
+        id: task.id,
+        title: task.title,
+        assigneeId: task.assigneeId,
+        status: task.status,
+        projectId: task.projectId
+      })
       .from(task)
       .where(and(eq(task.id, taskId), eq(task.projectId, projectId)));
 
@@ -103,16 +110,50 @@ export async function PUT(
     // Explicitly handle assigneeId, allowing it to be set to null
     if (assigneeId !== undefined) {
       updateData.assigneeId = assigneeId;
-      console.log("Setting assigneeId to:", assigneeId); // Debug log
     }
-
-    console.log("Task update data:", updateData); // Debug log
 
     const [updatedTask] = await db
       .update(task)
       .set(updateData)
       .where(eq(task.id, taskId))
       .returning();
+
+    // Create notifications for task changes
+    // Get project details for notifications
+    const [projectInfo] = await db
+      .select({ name: project.name })
+      .from(project)
+      .where(eq(project.id, projectId));
+
+    // Notification for assignee change
+    if (assigneeId !== undefined && 
+        assigneeId !== existingTask.assigneeId && 
+        assigneeId && 
+        assigneeId !== currentUser.id) {
+      
+      await createNotification({
+        userId: assigneeId,
+        message: `You have been assigned to task "${existingTask.title}" in project "${projectInfo?.name || 'Unknown Project'}"`,
+        type: "task_assigned",
+        projectId,
+        taskId,
+      });
+    }
+
+    // Notification for status change (for assignee if different from updater)
+    if (status !== undefined && 
+        status !== existingTask.status && 
+        existingTask.assigneeId && 
+        existingTask.assigneeId !== currentUser.id) {
+      
+      await createNotification({
+        userId: existingTask.assigneeId,
+        message: `Task "${existingTask.title}" status has been updated to "${status}" in project "${projectInfo?.name || 'Unknown Project'}"`,
+        type: "task_update",
+        projectId,
+        taskId,
+      });
+    }
 
     return NextResponse.json(updatedTask);
 
