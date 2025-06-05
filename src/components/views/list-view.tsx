@@ -26,7 +26,7 @@ import {
   Trash2,
   ChevronRight
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isTaskCompleted } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -40,6 +40,7 @@ import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { AttachmentCount } from "@/components/ui/attachment-thumbnail";
 import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
+import { useTaskPriority } from "@/hooks/use-task-priority";
 
 interface Task {
   id: string;
@@ -58,6 +59,9 @@ interface Task {
   projectId: string;
   createdAt: string;
   updatedAt: string;
+  priorityInfo?: {
+    priorityLevel: string;
+  };
 }
 
 interface Project {
@@ -132,8 +136,15 @@ function TaskListItem({ task, onUpdate, onClick }: {
       onClick={() => onClick?.(task)}
     >
       <div className="flex items-center space-x-4 flex-1 min-w-0">
-        {/* Priority indicator */}
-        <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} flex-shrink-0`} />
+        {/* Priority indicator and P-level */}
+        <div className="flex items-center space-x-2">
+          <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} flex-shrink-0`} />
+          {!isTaskCompleted(task.status) && (
+            <Badge variant="outline" className="text-xs">
+              {task.priorityInfo?.priorityLevel || 'P-?'}
+            </Badge>
+          )}
+        </div>
         
         {/* Task info */}
         <div className="flex-1 min-w-0">
@@ -149,7 +160,7 @@ function TaskListItem({ task, onUpdate, onClick }: {
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
             <div className="flex items-center space-x-1">
               <FolderOpen className="h-3 w-3" />
-              <span className="truncate max-w-[100px]">{task.project}</span>
+              <span className="truncate max-w-[180px]">{task.project || 'No Project'}</span>
             </div>
             
             <div className="flex items-center space-x-1">
@@ -327,35 +338,85 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
   );
 }
 
+// Add sorting function
+const sortByPriorityLevel = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const aLevel = parseInt(a.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    const bLevel = parseInt(b.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    return aLevel - bLevel;
+  });
+};
+
 export function ListView({ items, type, onItemUpdate, onItemClick, onEdit, onDelete, className }: ListViewProps) {
+  // Filter out completed tasks before prioritization
+  const activeItems = items.filter(item => 
+    type === 'tasks' ? 
+      (item as Task).status !== 'DONE' && (item as Task).status !== 'completed' : 
+      true
+  );
+  
+  const { tasks: prioritizedTasks, updateTask } = useTaskPriority(activeItems as Task[]);
+
+  // Handle task updates
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    updateTask(taskId, updates);
+    onItemUpdate?.(taskId, updates);
+  };
+
+  // Separate completed tasks to show at the bottom without priority numbers
+  const completedItems = items.filter(item => 
+    type === 'tasks' ? 
+      (item as Task).status === 'DONE' || (item as Task).status === 'completed' : 
+      false
+  );
+
   return (
     <div className={cn("w-full", className)}>
       <div className="border rounded-lg bg-background">
-        {items.length > 0 ? (
-          items.map((item, index) => {
-            if (type === 'tasks') {
-              return (
-                <TaskListItem
-                  key={item.id}
-                  task={item as Task}
-                  onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
-                  onClick={(task) => onItemClick?.(task)}
-                />
-              );
-            } else {
-              return (
-                <ProjectListItem
-                  key={item.id}
-                  project={item as Project}
-                  onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
-                  onClick={(project) => onItemClick?.(project)}
-                  onEdit={(project) => onEdit?.(project)}
-                  onDelete={(project) => onDelete?.(project)}
-                />
-              );
-            }
-          })
-        ) : (
+        {/* Active Tasks */}
+        {prioritizedTasks.map((item) => {
+          if (type === 'tasks') {
+            return (
+              <TaskListItem
+                key={item.id}
+                task={item as Task}
+                onUpdate={(updates) => handleTaskUpdate(item.id, updates)}
+                onClick={(task) => onItemClick?.(task)}
+              />
+            );
+          } else {
+            return (
+              <ProjectListItem
+                key={item.id}
+                project={item as Project}
+                onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
+                onClick={(project) => onItemClick?.(project)}
+                onEdit={(project) => onEdit?.(project)}
+                onDelete={(project) => onDelete?.(project)}
+              />
+            );
+          }
+        })}
+
+        {/* Completed Tasks */}
+        {completedItems.length > 0 && type === 'tasks' && (
+          <>
+            <div className="px-4 py-2 bg-muted/30 border-t">
+              <h3 className="text-sm font-medium text-muted-foreground">Completed Tasks</h3>
+            </div>
+            {completedItems.map((item) => (
+              <TaskListItem
+                key={item.id}
+                task={item as Task}
+                onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
+                onClick={(task) => onItemClick?.(task)}
+              />
+            ))}
+          </>
+        )}
+
+        {/* Empty State */}
+        {items.length === 0 && (
           <div className="text-center py-12">
             <div className="text-muted-foreground">
               <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />

@@ -91,6 +91,7 @@ export const task = pgTable("task", {
   description: text("description"),
   status: taskStatusEnum("status").notNull().default('TODO'),
   dueDate: timestamp("due_date"),
+  estimatedHours: text("estimated_hours"),
   projectId: uuid("project_id")
     .notNull()
     .references(() => project.id, { onDelete: "cascade" }),

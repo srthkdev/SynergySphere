@@ -18,8 +18,9 @@ import {
   Timer,
   Square
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isTaskCompleted } from "@/lib/utils";
 import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
+import { useTaskPriority } from "@/hooks/use-task-priority";
 
 interface Task {
   id: string;
@@ -39,6 +40,9 @@ interface Task {
   createdAt: string;
   updatedAt: string;
   createdById?: string;
+  priorityInfo?: {
+    priorityLevel: string;
+  };
 }
 
 interface KanbanViewProps {
@@ -131,7 +135,12 @@ function TaskCard({ task, onUpdate, onTaskClick }: {
           <CardTitle className="text-sm font-medium line-clamp-2">
             {task.title}
           </CardTitle>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
+            {!isTaskCompleted(task.status) && (
+              <Badge variant="outline" className="text-xs">
+                {task.priorityInfo?.priorityLevel || 'P-?'}
+              </Badge>
+            )}
             <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
             {task.createdById && (
               <EditTaskButton 
@@ -213,6 +222,15 @@ function TaskCard({ task, onUpdate, onTaskClick }: {
   );
 }
 
+// Add sorting function
+const sortByPriorityLevel = (items: Task[]) => {
+  return [...items].sort((a, b) => {
+    const aLevel = parseInt(a.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    const bLevel = parseInt(b.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    return aLevel - bLevel;
+  });
+};
+
 function KanbanColumn({ 
   column, 
   tasks, 
@@ -228,6 +246,9 @@ function KanbanColumn({
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const Icon = column.icon;
+
+  // Sort tasks by priority level
+  const sortedTasks = sortByPriorityLevel(tasks);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -255,7 +276,7 @@ function KanbanColumn({
           <Icon className={cn("h-4 w-4", column.iconColor)} />
           <h3 className="text-sm font-medium">{column.title}</h3>
           <Badge variant="outline" className="text-xs">
-            {tasks.length}
+            {sortedTasks.length}
           </Badge>
         </div>
         <Button 
@@ -277,7 +298,7 @@ function KanbanColumn({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {tasks.map((task) => (
+        {sortedTasks.map((task) => (
           <TaskCard
             key={task.id}
             task={task}
@@ -290,18 +311,39 @@ function KanbanColumn({
   );
 }
 
-export function KanbanView({ tasks, onTaskUpdate, onTaskCreate, onTaskClick, className }: KanbanViewProps) {
+export function KanbanView({ tasks: initialTasks, onTaskUpdate, onTaskCreate, onTaskClick, className }: KanbanViewProps) {
+  // Filter out completed tasks before prioritization
+  const activeTasks = initialTasks.filter(task => 
+    task.status !== 'DONE' && task.status !== 'completed'
+  );
+  
+  const { tasks: prioritizedTasks, updateTask } = useTaskPriority(activeTasks);
+
+  // Handle task updates
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    updateTask(taskId, updates);
+    onTaskUpdate?.(taskId, updates);
+  };
+
+  // Get completed tasks for the "Completed" column
+  const completedTasks = initialTasks.filter(task => 
+    task.status === 'DONE' || task.status === 'completed'
+  );
+
   return (
     <div className={cn("grid grid-cols-1 md:grid-cols-3 gap-4 h-full", className)}>
       {columns.map((column) => {
-        const filteredTasks = tasks.filter(task => task.status === column.status);
+        // For completed column, use completedTasks directly
+        const tasksForColumn = column.status === 'completed' 
+          ? completedTasks 
+          : prioritizedTasks.filter(task => task.status === column.status);
         
         return (
           <KanbanColumn
             key={column.id}
             column={column}
-            tasks={filteredTasks}
-            onTaskUpdate={onTaskUpdate}
+            tasks={tasksForColumn}
+            onTaskUpdate={handleTaskUpdate}
             onTaskCreate={onTaskCreate}
             onTaskClick={onTaskClick}
           />
