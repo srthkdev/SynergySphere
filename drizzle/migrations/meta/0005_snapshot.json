@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "id": "c65cb773-368b-4426-9d86-87e31b5f0ce4",
+=======
+  "id": "211635ac-e36a-48c2-8e28-e2d2bb982130",
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
   "prevId": "c7ea53fa-31be-481c-9966-c230a019997e",
   "version": "7",
   "dialect": "postgresql",
@@ -235,6 +239,21 @@
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
+=======
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "total_budget": {
           "name": "total_budget",
           "type": "integer",
@@ -256,6 +275,33 @@
           "notNull": true,
           "default": "'USD'"
         },
+<<<<<<< HEAD
+=======
+        "start_date": {
+          "name": "start_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_base64": {
+          "name": "image_base64",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_type": {
+          "name": "image_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "created_by_id": {
           "name": "created_by_id",
           "type": "text",
@@ -1000,12 +1046,15 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+<<<<<<< HEAD
         },
         "tags": {
           "name": "tags",
           "type": "text",
           "primaryKey": false,
           "notNull": false
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         }
       },
       "indexes": {},

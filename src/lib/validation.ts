@@ -57,15 +57,26 @@ export const createCommentSchema = z.object({
 // Budget validation schemas
 export const createBudgetSchema = z.object({
   projectId: z.string().uuid("Invalid project ID"),
+  name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  description: z.string().max(500, "Description must be less than 500 characters").optional(),
   totalBudget: z.number().min(0, "Budget must be non-negative"),
   currency: z.string().length(3, "Currency must be 3 characters").default("USD"),
+  startDate: z.string().datetime().optional(), // ISO datetime string
+  endDate: z.string().datetime().optional(), // ISO datetime string
+  imageBase64: z.string().optional(), // Base64 encoded image data
+  imageType: z.string().optional(), // MIME type of the image
 });
 
 export const createBudgetEntrySchema = z.object({
   budgetId: z.string().uuid("Invalid budget ID"),
+  name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters").optional(),
   amount: z.number().int("Amount must be an integer"),
-  description: z.string().min(1, "Description is required").max(200, "Description must be less than 200 characters"),
+  description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
   category: z.string().max(50, "Category must be less than 50 characters").default("general"),
+  startDate: z.string().datetime().optional(), // ISO datetime string
+  endDate: z.string().datetime().optional(), // ISO datetime string
+  imageBase64: z.string().optional(), // Base64 encoded image data
+  imageType: z.string().optional(), // MIME type of the image
   taskId: z.string().uuid("Invalid task ID").optional(),
 });
 

@@ -20,6 +20,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -46,17 +47,29 @@ import {
   User,
   ArrowUp,
   ArrowDown,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth/auth-client';
-import { fetchTasksByProjectId } from '@/lib/queries';
+import { 
+  fetchTasksByProjectId,
+  fetchBudgetEntries,
+  createBudgetEntry, 
+  deleteBudgetEntry 
+} from '@/lib/queries';
 
 interface Budget {
   id: string;
   projectId: string;
+  name: string;
+  description?: string;
   totalBudget: number;
   spentAmount: number;
   currency: string;
+  startDate?: string;
+  endDate?: string;
+  imageBase64?: string;
+  imageType?: string;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -69,6 +82,7 @@ interface BudgetEntry {
   description: string;
   category: string;
   taskId?: string;
+  taskTitle?: string;
   createdById: string;
   createdAt: string;
 }
@@ -118,15 +132,13 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     },
   });
 
-  // Fetch budget entries
-  const { data: entries = [], isLoading: entriesLoading } = useQuery<BudgetEntry[]>({
+  // Get budget entries if budget exists
+  const { 
+    data: budgetEntries = [], 
+    isLoading: entriesLoading 
+  } = useQuery<BudgetEntry[]>({
     queryKey: ['budgetEntries', budget?.id],
-    queryFn: async () => {
-      if (!budget?.id) return [];
-      const response = await fetch(`/api/budgets/${budget.id}/entries`);
-      if (!response.ok) throw new Error('Failed to fetch budget entries');
-      return response.json();
-    },
+    queryFn: () => budget ? fetchBudgetEntries(budget.id) : Promise.resolve([]),
     enabled: !!budget?.id,
   });
 
@@ -142,7 +154,16 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
 
   // Create budget mutation
   const createBudgetMutation = useMutation({
-    mutationFn: async (data: { totalBudget: number; currency: string }) => {
+    mutationFn: async (data: { 
+      totalBudget: number; 
+      currency: string;
+      name: string;
+      description?: string;
+      startDate?: string;
+      endDate?: string;
+      imageBase64?: string;
+      imageType?: string;
+    }) => {
       const response = await fetch('/api/budgets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,9 +171,18 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
           projectId,
           totalBudget: data.totalBudget * 100, // Convert to cents
           currency: data.currency,
+          name: data.name,
+          description: data.description,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          imageBase64: data.imageBase64,
+          imageType: data.imageType,
         }),
       });
-      if (!response.ok) throw new Error('Failed to create budget');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || 'Failed to create budget');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -160,8 +190,8 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       setIsCreateBudgetOpen(false);
       toast.success('Budget created successfully');
     },
-    onError: () => {
-      toast.error('Failed to create budget');
+    onError: (error) => {
+      toast.error(`Failed to create budget: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -173,19 +203,11 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       category: string;
       taskId?: string;
     }) => {
-      const response = await fetch('/api/budget-entries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          budgetId: budget?.id,
-          amount: data.amount * 100, // Convert to cents
-          description: data.description,
-          category: data.category,
-          taskId: data.taskId || null,
-        }),
+      if (!budget?.id) throw new Error('Budget ID not found');
+      return createBudgetEntry({
+        budgetId: budget.id,
+        ...data
       });
-      if (!response.ok) throw new Error('Failed to add expense');
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgetEntries', budget?.id] });
@@ -193,26 +215,21 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
       setIsAddExpenseOpen(false);
       toast.success('Expense added successfully');
     },
-    onError: () => {
-      toast.error('Failed to add expense');
+    onError: (error) => {
+      toast.error(`Failed to add expense: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
   // Delete expense mutation
   const deleteExpenseMutation = useMutation({
-    mutationFn: async (entryId: string) => {
-      const response = await fetch(`/api/budget-entries/${entryId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete expense');
-    },
+    mutationFn: (entryId: string) => deleteBudgetEntry(entryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgetEntries', budget?.id] });
       queryClient.invalidateQueries({ queryKey: ['budget', projectId] });
       toast.success('Expense deleted successfully');
     },
-    onError: () => {
-      toast.error('Failed to delete expense');
+    onError: (error) => {
+      toast.error(`Failed to delete expense: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -221,13 +238,29 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
     const formData = new FormData(e.currentTarget);
     const totalBudget = parseFloat(formData.get('totalBudget') as string);
     const currency = formData.get('currency') as string;
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
+    
+    if (!name) {
+      toast.error('Budget name is required');
+      return;
+    }
 
     if (totalBudget <= 0) {
       toast.error('Budget amount must be greater than 0');
       return;
     }
 
-    createBudgetMutation.mutate({ totalBudget, currency });
+    createBudgetMutation.mutate({ 
+      totalBudget, 
+      currency, 
+      name, 
+      description: description || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined
+    });
   };
 
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
@@ -285,6 +318,24 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
               </DialogHeader>
               <form onSubmit={handleCreateBudget} className="space-y-4">
                 <div>
+                  <Label htmlFor="name">Budget Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Enter budget name"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Enter budget description"
+                    rows={3}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="totalBudget">Total Budget</Label>
                   <Input
                     id="totalBudget"
@@ -309,6 +360,24 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                       <SelectItem value="CAD">CAD ($)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      name="startDate"
+                      type="date"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      id="endDate"
+                      name="endDate"
+                      type="date"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -415,6 +484,57 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
         </CardContent>
       </Card>
 
+      {/* Budget Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Budget Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium text-sm text-muted-foreground">Name</h3>
+              <p>{budget.name || 'Unnamed Budget'}</p>
+            </div>
+            
+            {budget.description && (
+              <div>
+                <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
+                <p>{budget.description}</p>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              {budget.startDate && (
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground">Start Date</h3>
+                  <p>{new Date(budget.startDate).toLocaleDateString()}</p>
+                </div>
+              )}
+              
+              {budget.endDate && (
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground">End Date</h3>
+                  <p>{new Date(budget.endDate).toLocaleDateString()}</p>
+                </div>
+              )}
+            </div>
+
+            {budget.imageBase64 && budget.imageType && (
+              <div>
+                <h3 className="font-medium text-sm text-muted-foreground">Budget Image</h3>
+                <div className="mt-2">
+                  <img 
+                    src={`data:${budget.imageType};base64,${budget.imageBase64}`}
+                    alt="Budget image"
+                    className="max-h-48 rounded object-contain"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Expenses Section */}
       <Card>
         <CardHeader>
@@ -427,32 +547,89 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                   Add Expense
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Add Expense</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleAddExpense} className="space-y-4">
-                  <div>
-                    <Label htmlFor="amount">Amount</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Expense Name</Label>
                     <Input
-                      id="amount"
-                      name="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Enter amount"
+                      id="name"
+                      name="name"
+                      placeholder="Enter expense name"
                       required
                     />
                   </div>
-                  <div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Budget Amount</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="amount"
+                        name="amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="pl-8"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-4 grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input 
+                        id="startDate" 
+                        name="startDate"
+                        type="date" 
+                        placeholder="mm/dd/yyyy"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input 
+                        id="endDate" 
+                        name="endDate"
+                        type="date" 
+                        placeholder="mm/dd/yyyy"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Expense Image</Label>
+                    <div className="relative flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors cursor-pointer">
+                      <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Drag and drop or click to upload
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG or GIF (Max 2MB)
+                      </p>
+                      <Input
+                        type="file"
+                        name="image"
+                        className="hidden"
+                        accept="image/jpeg,image/png,image/gif"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
                       name="description"
-                      placeholder="Describe the expense"
+                      placeholder="Enter expense description"
+                      rows={3}
                       required
                     />
                   </div>
+                  
                   <div>
                     <Label htmlFor="category">Category</Label>
                     <Select name="category" defaultValue="general">
@@ -468,6 +645,7 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   <div>
                     <Label htmlFor="taskId">Related Task (Optional)</Label>
                     <Select name="taskId">
@@ -490,18 +668,20 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex justify-end space-x-2">
+                  
+                  <DialogFooter>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setIsAddExpenseOpen(false)}
+                      className="mt-2"
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={addExpenseMutation.isPending}>
+                    <Button type="submit" disabled={addExpenseMutation.isPending} className="mt-2">
                       {addExpenseMutation.isPending ? 'Adding...' : 'Add Expense'}
                     </Button>
-                  </div>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
@@ -510,60 +690,60 @@ export function BudgetTab({ projectId }: BudgetTabProps) {
         <CardContent>
           {entriesLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-sm text-muted-foreground">Loading expenses...</p>
             </div>
-          ) : entries.length === 0 ? (
+          ) : budgetEntries.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Receipt className="h-8 w-8 mx-auto mb-2" />
-              <p>No expenses recorded yet</p>
+              <p>No expenses recorded yet.</p>
+              <p className="text-sm">Click "Add Expense" to record a new expense.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium">{entry.description}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {entry.category}
-                      </Badge>
+              {budgetEntries.map((entry) => (
+                <Card key={entry.id} className="overflow-hidden">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{entry.description}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {entry.category}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(entry.createdAt).toLocaleDateString()}
+                        {entry.taskTitle && ` • Task: ${entry.taskTitle}`}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(entry.createdAt).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {formatCurrency(entry.amount, budget.currency)}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setEditingEntry(entry)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => deleteExpenseMutation.mutate(entry.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">
-                      {formatCurrency(entry.amount, budget.currency)}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingEntry(entry)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => deleteExpenseMutation.mutate(entry.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
+                </Card>
               ))}
             </div>
           )}

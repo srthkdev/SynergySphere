@@ -6,6 +6,8 @@ import { requireAuth, AuthenticatedUser } from "@/lib/auth/auth-middleware";
 import { validateRequestBody, createTaskSchema, updateTaskSchema } from "@/lib/validation";
 import { canAccessProject } from "@/lib/project-auth";
 import { createNotification } from "@/lib/notifications";
+import { Task } from '@/types';
+import { getTaskPriorityInfo } from '@/lib/task-prioritization';
 
 // GET /api/tasks - Get all tasks for projects the user has access to
 export const GET = requireAuth(async (request: NextRequest, user: AuthenticatedUser) => {
@@ -36,13 +38,55 @@ export const GET = requireAuth(async (request: NextRequest, user: AuthenticatedU
       updatedAt: task.updatedAt,
       attachmentUrl: task.attachmentUrl,
       projectName: project.name,
+      estimatedHours: task.estimatedHours
     })
     .from(task)
     .leftJoin(project, eq(task.projectId, project.id))
     .where(inArray(task.projectId, projectIds))
     .orderBy(task.createdAt);
 
-    return NextResponse.json(tasks);
+    // Convert dates to ISO strings and calculate priority info
+    const tasksWithPriority = tasks.map(dbTask => {
+      // Convert DB task to our Task type
+      const taskWithDates: Task = {
+        id: dbTask.id,
+        title: dbTask.title,
+        description: dbTask.description || undefined,
+        status: dbTask.status,
+        priority: dbTask.priority as Task['priority'],
+        dueDate: dbTask.dueDate?.toISOString() || null,
+        estimatedHours: dbTask.estimatedHours ? parseFloat(dbTask.estimatedHours) : null,
+        projectId: dbTask.projectId,
+        createdAt: dbTask.createdAt.toISOString(),
+        updatedAt: dbTask.updatedAt.toISOString(),
+        createdById: dbTask.createdById
+      };
+
+      // Convert all tasks
+      const allTasksConverted: Task[] = tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description || undefined,
+        status: t.status,
+        priority: t.priority as Task['priority'],
+        dueDate: t.dueDate?.toISOString() || null,
+        estimatedHours: t.estimatedHours ? parseFloat(t.estimatedHours) : null,
+        projectId: t.projectId,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+        createdById: t.createdById
+      }));
+
+      return {
+        ...taskWithDates,
+        projectName: dbTask.projectName,
+        assigneeId: dbTask.assigneeId,
+        attachmentUrl: dbTask.attachmentUrl,
+        priorityInfo: getTaskPriorityInfo(taskWithDates, allTasksConverted)
+      };
+    });
+
+    return NextResponse.json(tasksWithPriority);
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });

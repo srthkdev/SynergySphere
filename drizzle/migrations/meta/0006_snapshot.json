@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
   "id": "61b7124c-7931-495b-ab41-d108c6420c5b",
   "prevId": "c65cb773-368b-4426-9d86-87e31b5f0ce4",
+=======
+  "id": "fd3a7d7d-fb43-4d1b-84af-0f51fc447db6",
+  "prevId": "211635ac-e36a-48c2-8e28-e2d2bb982130",
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -247,6 +252,30 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
+=======
+        "total_budget": {
+          "name": "total_budget",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "spent_amount": {
+          "name": "spent_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
+        },
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "start_date": {
           "name": "start_date",
           "type": "timestamp",
@@ -271,6 +300,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "total_budget": {
           "name": "total_budget",
           "type": "integer",
@@ -292,6 +322,8 @@
           "notNull": true,
           "default": "'USD'"
         },
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "created_by_id": {
           "name": "created_by_id",
           "type": "text",
@@ -373,6 +405,7 @@
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
         "name": {
           "name": "name",
           "type": "text",
@@ -403,6 +436,8 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "amount": {
           "name": "amount",
           "type": "integer",
@@ -1022,12 +1057,15 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "estimated_hours": {
           "name": "estimated_hours",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "project_id": {
           "name": "project_id",
           "type": "uuid",
@@ -1072,12 +1110,15 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+<<<<<<< HEAD
         },
         "tags": {
           "name": "tags",
           "type": "text",
           "primaryKey": false,
           "notNull": false
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         }
       },
       "indexes": {},
@@ -1162,6 +1203,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "title": {
           "name": "title",
           "type": "text",
@@ -1192,6 +1234,8 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         "created_at": {
           "name": "created_at",
           "type": "timestamp",

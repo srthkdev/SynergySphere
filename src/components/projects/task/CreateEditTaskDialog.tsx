@@ -93,9 +93,14 @@ export function CreateEditTaskDialog({
           status: taskToEdit.status,
           dueDate: taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().substring(0, 10) : "",
           assigneeId: taskToEdit.assigneeId,
+<<<<<<< HEAD
           priority: taskToEdit.priority || 'MEDIUM',
           attachmentUrl: taskToEdit.attachmentUrl || null,
           tags: Array.isArray(taskToEdit.tags) ? taskToEdit.tags.join(", ") : (typeof taskToEdit.tags === 'string' ? taskToEdit.tags : ""),
+=======
+          priority: taskToEdit.priority === 'URGENT' ? 'HIGH' : (taskToEdit.priority || 'MEDIUM'),
+          attachmentUrl: null,
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
         }
       : defaultFormValues,
   });
@@ -143,12 +148,9 @@ export function CreateEditTaskDialog({
 
   // Set image preview when task to edit has an attachment
   useEffect(() => {
-    if (taskToEdit?.attachmentUrl) {
-      setImagePreview(taskToEdit.attachmentUrl);
-    } else {
-      setImagePreview(null);
-      setImageFile(null);
-    }
+    // Task type doesn't have attachmentUrl, so always reset
+    setImagePreview(null);
+    setImageFile(null);
   }, [taskToEdit]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,14 +193,17 @@ export function CreateEditTaskDialog({
   } = useMutation({
     mutationFn: async ({ taskData, currentTask }: { taskData: Omit<TaskFormValues, 'tags'> & { tags: string[] }; currentTask?: Task | null }) => {
       const apiData = {
-        projectId: taskData.projectId,
         title: taskData.title?.trim() === "" ? "Untitled Task" : taskData.title,
-        description: taskData.description?.trim() === "" ? null : taskData.description,
+        description: taskData.description?.trim() === "" ? undefined : taskData.description,
         status: taskData.status,
-        dueDate: taskData.dueDate?.trim() === "" ? null : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null),
+        dueDate: taskData.dueDate?.trim() === "" ? undefined : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : undefined),
         priority: taskData.priority,
+<<<<<<< HEAD
         assigneeId: taskData.assigneeId,
         tags: taskData.tags,
+=======
+        assigneeId: taskData.assigneeId || undefined, // Convert null to undefined
+>>>>>>> fb17aecb2e495cf28351b71147cba5196976367c
       };
       let savedTask;
       if (currentTask) {

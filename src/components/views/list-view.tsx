@@ -26,7 +26,7 @@ import {
   Trash2,
   ChevronRight
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isTaskCompleted } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -40,56 +40,27 @@ import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { AttachmentCount } from "@/components/ui/attachment-thumbnail";
 import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  dueDate?: string;
-  assignedBy: string;
-  assignedByAvatar: string;
-  tags: string[];
-  progress: number;
-  estimatedHours: number;
-  loggedHours: number;
-  project: string;
-  projectId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  status: 'planning' | 'active' | 'on-hold' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  createdAt: string;
-  updatedAt: string;
-  role: string; // user's role in the project
-  memberCount: number;
-}
+import { useTaskPriority } from "@/hooks/use-task-priority";
+import { ViewTask, Task, Project } from "@/types";
 
 interface ListViewProps {
-  items: Task[] | Project[];
+  items: ViewTask[] | Project[];
   type: 'tasks' | 'projects';
   onItemUpdate?: (itemId: string, updates: any) => void;
-  onItemClick?: (item: Task | Project) => void;
-  onEdit?: (item: Task | Project) => void;
-  onDelete?: (item: Task | Project) => void;
+  onItemClick?: (item: ViewTask | Project) => void;
+  onEdit?: (item: ViewTask | Project) => void;
+  onDelete?: (item: ViewTask | Project) => void;
   className?: string;
 }
 
 function getPriorityColor(priority: string) {
   const normalizedPriority = priority?.toLowerCase() || 'medium';
   switch (normalizedPriority) {
-    case 'urgent':
+    case 'urgent': return 'bg-red-600';
     case 'high': return 'bg-red-500';
     case 'medium': return 'bg-yellow-500';
     case 'low': return 'bg-green-500';
-    default: return 'bg-gray-500';
+    default: return 'bg-gray-400';
   }
 }
 
@@ -119,9 +90,9 @@ function isOverdue(dueDate: string, status: string) {
 }
 
 function TaskListItem({ task, onUpdate, onClick }: { 
-  task: Task; 
-  onUpdate?: (updates: Partial<Task>) => void;
-  onClick?: (task: Task) => void;
+  task: ViewTask; 
+  onUpdate?: (updates: Partial<ViewTask>) => void;
+  onClick?: (task: ViewTask) => void;
 }) {
   return (
     <div 
@@ -132,8 +103,15 @@ function TaskListItem({ task, onUpdate, onClick }: {
       onClick={() => onClick?.(task)}
     >
       <div className="flex items-center space-x-4 flex-1 min-w-0">
-        {/* Priority indicator */}
-        <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} flex-shrink-0`} />
+        {/* Priority indicator and P-level */}
+        <div className="flex items-center space-x-2">
+          <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)} flex-shrink-0 ring-1 ring-white dark:ring-gray-800 shadow-sm`} />
+          {!isTaskCompleted(task.status) && (
+            <Badge variant="outline" className="text-xs">
+              {task.priorityLevel || 'P-?'}
+            </Badge>
+          )}
+        </div>
         
         {/* Task info */}
         <div className="flex-1 min-w-0">
@@ -142,14 +120,14 @@ function TaskListItem({ task, onUpdate, onClick }: {
               {task.title}
             </h3>
             <Badge className={cn("text-xs", getStatusColor(task.status))}>
-              {task.status.replace('-', ' ')}
+              {task.status?.replace('-', ' ') || 'unknown'}
             </Badge>
           </div>
           
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-            <div className="flex items-center space-x-1">
-              <FolderOpen className="h-3 w-3" />
-              <span className="truncate max-w-[100px]">{task.project}</span>
+            <div className="flex items-center space-x-1 bg-muted/30 rounded px-2 py-0.5">
+              <FolderOpen className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+              <span className="truncate max-w-[180px] font-medium text-blue-800 dark:text-blue-300">{task.project || 'No Project'}</span>
             </div>
             
             <div className="flex items-center space-x-1">
@@ -238,7 +216,7 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
     >
       <div className="flex items-center space-x-4 flex-1 min-w-0">
         {/* Priority indicator */}
-        <div className={`w-3 h-3 rounded-full ${getPriorityColor(project.priority)} flex-shrink-0`} />
+        <div className={`w-3 h-3 rounded-full ${getPriorityColor(project.priority || 'medium')} flex-shrink-0 ring-1 ring-white dark:ring-gray-800 shadow-sm`} />
         
         {/* Project info */}
         <div className="flex-1 min-w-0">
@@ -246,11 +224,11 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
             <h3 className="font-medium text-sm truncate group-hover:text-primary">
               {project.name}
             </h3>
-            <Badge className={cn("text-xs", getStatusColor(project.status))}>
-              {project.status.replace('-', ' ')}
+            <Badge className={cn("text-xs", getStatusColor(project.status || 'active'))}>
+              {(project.status || 'active').replace('-', ' ')}
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {project.role}
+              {project.role || 'member'}
             </Badge>
             {attachmentCount > 0 && (
               <AttachmentCount count={attachmentCount} />
@@ -268,10 +246,12 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
               <span>Created {new Date(project.createdAt).toLocaleDateString()}</span>
             </div>
             
-            <div className="flex items-center space-x-1">
-              <Clock className="h-3 w-3" />
-              <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
-            </div>
+            {project.updatedAt && (
+              <div className="flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -279,7 +259,7 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
       {/* Actions */}
       <div className="flex items-center space-x-4">
         <div className="text-xs text-muted-foreground">
-          Priority: {project.priority}
+          Priority: {project.priority || 'medium'}
         </div>
         
         <DropdownMenu>
@@ -327,53 +307,155 @@ function ProjectListItem({ project, onUpdate, onClick, onEdit, onDelete }: {
   );
 }
 
+// Add sorting function
+const sortByPriorityLevel = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const aLevel = parseInt(a.priorityLevel?.replace('P-', '') || '999');
+    const bLevel = parseInt(b.priorityLevel?.replace('P-', '') || '999');
+    return aLevel - bLevel;
+  });
+};
+
 export function ListView({ items, type, onItemUpdate, onItemClick, onEdit, onDelete, className }: ListViewProps) {
-  return (
-    <div className={cn("w-full", className)}>
-      <div className="border rounded-lg bg-background">
-        {items.length > 0 ? (
-          items.map((item, index) => {
-            if (type === 'tasks') {
-              return (
+  if (type === 'tasks') {
+    const taskItems = items as ViewTask[];
+    
+    // Convert ViewTask to Task for the priority hook
+    const tasksForPriority: Task[] = taskItems.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      status: task.status === 'todo' ? 'TODO' : task.status === 'in-progress' ? 'IN_PROGRESS' : 'DONE',
+      priority: task.priority?.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' || 'MEDIUM',
+      dueDate: task.dueDate || null,
+      estimatedHours: task.estimatedHours || null,
+      projectId: task.projectId || '',
+      assigneeId: null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      createdById: task.createdById,
+      priorityInfo: {
+        priorityLevel: task.priorityLevel
+      }
+    }));
+
+    // Filter out completed tasks before prioritization
+    const activeItems = tasksForPriority.filter(task => 
+      task.status !== 'DONE'
+    );
+    
+    const { tasks: prioritizedTasks, updateTask } = useTaskPriority(activeItems);
+
+    // Convert back to ViewTask format
+    const viewTasks: ViewTask[] = prioritizedTasks.map(task => {
+      const originalTask = taskItems.find(t => t.id === task.id);
+      return {
+        ...originalTask!,
+        priorityLevel: task.priorityInfo?.priorityLevel || originalTask!.priorityLevel
+      };
+    });
+
+    // Handle task updates
+    const handleTaskUpdate = (taskId: string, updates: Partial<ViewTask>) => {
+      // Convert updates to Task format for the hook
+      const taskUpdates: Partial<Task> = {
+        ...updates,
+        status: updates.status ? 
+          (updates.status === 'todo' ? 'TODO' : 
+           updates.status === 'in-progress' ? 'IN_PROGRESS' : 'DONE') : undefined,
+        priority: updates.priority?.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | undefined
+      };
+      
+      updateTask(taskId, taskUpdates);
+      onItemUpdate?.(taskId, updates);
+    };
+
+    // Separate completed tasks to show at the bottom without priority numbers
+    const completedItems = taskItems.filter(task => 
+      task.status === 'completed'
+    );
+
+    return (
+      <div className={cn("w-full", className)}>
+        <div className="border rounded-lg bg-background">
+          {/* Active Tasks */}
+          {viewTasks.map((item) => (
+            <TaskListItem
+              key={item.id}
+              task={item}
+              onUpdate={(updates) => handleTaskUpdate(item.id, updates)}
+              onClick={(task) => onItemClick?.(task)}
+            />
+          ))}
+
+          {/* Completed Tasks */}
+          {completedItems.length > 0 && (
+            <>
+              <div className="px-4 py-2 bg-muted/30 border-t">
+                <h3 className="text-sm font-medium text-muted-foreground">Completed Tasks</h3>
+              </div>
+              {completedItems.map((item) => (
                 <TaskListItem
                   key={item.id}
-                  task={item as Task}
+                  task={item}
                   onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
                   onClick={(task) => onItemClick?.(task)}
                 />
-              );
-            } else {
-              return (
-                <ProjectListItem
-                  key={item.id}
-                  project={item as Project}
-                  onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
-                  onClick={(project) => onItemClick?.(project)}
-                  onEdit={(project) => onEdit?.(project)}
-                  onDelete={(project) => onDelete?.(project)}
-                />
-              );
-            }
-          })
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-muted-foreground">
-              <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No {type} found</h3>
-              <p className="text-sm">
-                {type === 'tasks' 
-                  ? "Create your first task to get started" 
-                  : "Create your first project to get started"
-                }
-              </p>
+              ))}
+            </>
+          )}
+
+          {/* Empty State */}
+          {taskItems.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No tasks found</h3>
+                <p className="text-sm">Create your first task to get started</p>
+              </div>
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Task
+              </Button>
             </div>
-            <Button className="mt-4">
-              <Plus className="h-4 w-4 mr-2" />
-              Create {type === 'tasks' ? 'Task' : 'Project'}
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  } else {
+    // Handle projects
+    const projectItems = items as Project[];
+    
+    return (
+      <div className={cn("w-full", className)}>
+        <div className="border rounded-lg bg-background">
+          {projectItems.map((item) => (
+            <ProjectListItem
+              key={item.id}
+              project={item}
+              onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
+              onClick={(project) => onItemClick?.(project)}
+              onEdit={(project) => onEdit?.(project)}
+              onDelete={(project) => onDelete?.(project)}
+            />
+          ))}
+
+          {/* Empty State */}
+          {projectItems.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No projects found</h3>
+                <p className="text-sm">Create your first project to get started</p>
+              </div>
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Project
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 } 

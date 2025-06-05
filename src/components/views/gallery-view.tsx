@@ -29,7 +29,7 @@ import {
   Tag,
   Paperclip
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isTaskCompleted } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -43,6 +43,7 @@ import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { AttachmentCount } from "@/components/ui/attachment-thumbnail";
 import { EditTaskButton } from "@/components/projects/task/EditTaskButton";
+import { useTaskPriority } from "@/hooks/use-task-priority";
 
 // Extended Task interface for the view components that includes additional UI-specific fields
 interface Task extends ImportedTask {
@@ -53,6 +54,9 @@ interface Task extends ImportedTask {
   estimatedHours: number;
   loggedHours: number;
   project: string;
+  priorityInfo?: {
+    priorityLevel: string;
+  };
 }
 
 interface GalleryViewProps {
@@ -118,6 +122,14 @@ function TaskCard({ task, onUpdate, onClick, currentUserId }: {
       <CardHeader className="pb-4 flex-shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              {!isTaskCompleted(task.status) && (
+                <Badge variant="outline" className="text-xs">
+                  {task.priorityInfo?.priorityLevel || 'P-?'}
+                </Badge>
+              )}
+              <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
+            </div>
             <CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
               {task.title}
             </CardTitle>
@@ -476,17 +488,49 @@ function ProjectCard({ project, onUpdate, onClick, onEdit, onDelete }: {
   );
 }
 
+// Add sorting function
+const sortByPriorityLevel = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const aLevel = parseInt(a.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    const bLevel = parseInt(b.priorityInfo?.priorityLevel?.replace('P-', '') || '999');
+    return aLevel - bLevel;
+  });
+};
+
 export function GalleryView({ items, type, onItemUpdate, onItemClick, onEdit, onDelete, className, currentUserId }: GalleryViewProps & { currentUserId?: string }) {
+  // Filter out completed tasks before prioritization
+  const activeItems = items.filter(item => 
+    type === 'tasks' ? 
+      (item as Task).status !== 'DONE' && (item as Task).status !== 'completed' : 
+      true
+  );
+  
+  const { tasks: prioritizedTasks, updateTask } = useTaskPriority(activeItems as Task[]);
+
+  // Handle task updates
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    updateTask(taskId, updates);
+    onItemUpdate?.(taskId, updates);
+  };
+
+  // Separate completed tasks
+  const completedItems = items.filter(item => 
+    type === 'tasks' ? 
+      (item as Task).status === 'DONE' || (item as Task).status === 'completed' : 
+      false
+  );
+
   return (
     <div className={cn("w-full", className)}>
+      {/* Active Tasks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 auto-rows-fr">
-        {items.map((item) => {
+        {prioritizedTasks.map((item) => {
           if (type === 'tasks') {
             return (
               <TaskCard
                 key={item.id}
                 task={item as Task}
-                onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
+                onUpdate={(updates) => handleTaskUpdate(item.id, updates)}
                 onClick={(task) => onItemClick?.(task)}
                 currentUserId={currentUserId}
               />
@@ -505,6 +549,26 @@ export function GalleryView({ items, type, onItemUpdate, onItemClick, onEdit, on
           }
         })}
       </div>
+
+      {/* Completed Tasks Section */}
+      {completedItems.length > 0 && type === 'tasks' && (
+        <>
+          <div className="mt-8 mb-4">
+            <h3 className="text-lg font-medium text-muted-foreground">Completed Tasks</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 auto-rows-fr opacity-75">
+            {completedItems.map((item) => (
+              <TaskCard
+                key={item.id}
+                task={item as Task}
+                onUpdate={(updates) => onItemUpdate?.(item.id, updates)}
+                onClick={(task) => onItemClick?.(task)}
+                currentUserId={currentUserId}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 } 

@@ -14,12 +14,20 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { 
   DollarSign,
   TrendingUp,
   TrendingDown,
   PieChart,
   BarChart3,
-  Calendar,
+  Calendar as CalendarIcon,
   Plus,
   Filter,
   Download,
@@ -46,8 +54,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useQuery } from "@tanstack/react-query"
-import { fetchBudgets } from "@/lib/queries"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { fetchBudgets, createBudget, fetchProjects } from "@/lib/queries"
+import { useState, useRef } from "react"
+import { toast } from "sonner"
+import { format } from "date-fns"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { Textarea } from "@/components/ui/textarea"
+import { Calendar } from "@/components/ui/calendar"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -93,6 +110,132 @@ export default function BudgetsPage() {
     queryKey: ['budgets'],
     queryFn: fetchBudgets,
   });
+  
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchProjects,
+  });
+  
+  const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  
+  // Function to navigate to budget detail page
+  const handleBudgetClick = (budgetId: string, e: React.MouseEvent) => {
+    // Check if the click is from a button or dropdown
+    if (
+      e.target instanceof HTMLElement && 
+      (e.target.closest('button') || e.target.closest('.dropdown-menu'))
+    ) {
+      return;
+    }
+    
+    router.push(`/budgets/${budgetId}`);
+  };
+  
+  // Mutation for creating a budget
+  const createBudgetMutation = useMutation({
+    mutationFn: createBudget,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      setIsCreateBudgetOpen(false);
+      toast.success('Budget created successfully');
+      
+      // Reset form state
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setPreviewImage(null);
+      setSelectedProjectId(null);
+    },
+    onError: (error) => {
+      toast.error(`Failed to create budget: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+  
+  const handleCreateBudget = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const projectId = formData.get('projectId') as string;
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    const totalBudget = parseFloat(formData.get('totalBudget') as string);
+    const currency = formData.get('currency') as string;
+
+    if (!projectId) {
+      toast.error('Please select a project');
+      return;
+    }
+
+    if (!name) {
+      toast.error('Budget name is required');
+      return;
+    }
+
+    if (isNaN(totalBudget) || totalBudget <= 0) {
+      toast.error('Budget amount must be greater than 0');
+      return;
+    }
+
+    // Prepare budget data
+    const budgetData: any = { 
+      projectId, 
+      name,
+      description: description || undefined,
+      totalBudget, 
+      currency: currency || 'USD',
+    };
+
+    // Add dates if provided
+    if (startDate) {
+      budgetData.startDate = startDate.toISOString();
+    }
+    if (endDate) {
+      budgetData.endDate = endDate.toISOString();
+    }
+
+    // Add image if uploaded
+    if (previewImage) {
+      // Extract base64 data and mime type from data URL
+      const match = previewImage.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const [, mime, base64Data] = match;
+        budgetData.imageBase64 = base64Data;
+        budgetData.imageType = mime;
+      }
+    }
+
+    createBudgetMutation.mutate(budgetData);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // File size validation (2MB limit)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image must be less than 2MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setPreviewImage(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   if (isLoading) {
     return (
@@ -132,10 +275,182 @@ export default function BudgetsPage() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Budget
-          </Button>
+          <Dialog open={isCreateBudgetOpen} onOpenChange={setIsCreateBudgetOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Budget
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Create New Budget</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateBudget} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="projectId">Project</Label>
+                  <Select name="projectId" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project: any) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="name">Budget Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Enter budget name"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Enter budget description"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="totalBudget">Budget Amount</Label>
+                    <Input
+                      id="totalBudget"
+                      name="totalBudget"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Enter amount"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select name="currency" defaultValue="USD">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input 
+                      id="startDate" 
+                      type="date" 
+                      value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                      onChange={(e) => {
+                        const dateValue = e.target.value;
+                        if (dateValue) {
+                          setStartDate(new Date(dateValue));
+                        } else {
+                          setStartDate(undefined);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input 
+                      id="endDate" 
+                      type="date" 
+                      value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                      onChange={(e) => {
+                        const dateValue = e.target.value;
+                        if (dateValue) {
+                          setEndDate(new Date(dateValue));
+                        } else {
+                          setEndDate(undefined);
+                        }
+                      }}
+                      min={startDate ? format(startDate, "yyyy-MM-dd") : undefined}
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Budget Image</Label>
+                  <div className="relative flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    {previewImage ? (
+                      <div className="relative w-full">
+                        <img 
+                          src={previewImage} 
+                          alt="Budget preview" 
+                          className="mx-auto max-h-32 object-contain rounded" 
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="absolute top-0 right-0 h-8 w-8 p-0 rounded-full z-10"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the parent onClick
+                            handleRemoveImage();
+                          }}
+                        >
+                          &times;
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Drag and drop or click to upload
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          JPG, PNG or GIF (Max 2MB)
+                        </p>
+                      </>
+                    )}
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      name="image"
+                      className="hidden" // Hide completely instead of using opacity
+                      accept="image/jpeg,image/png,image/gif"
+                      onChange={handleFileChange}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-2 pt-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsCreateBudgetOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={createBudgetMutation.isPending}
+                  >
+                    {createBudgetMutation.isPending ? 'Creating...' : 'Create Budget'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -227,20 +542,32 @@ export default function BudgetsPage() {
                 <p className="text-muted-foreground mb-4">
                   Create your first project budget to start tracking expenses.
                 </p>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Budget
-                </Button>
+                <Dialog open={isCreateBudgetOpen} onOpenChange={setIsCreateBudgetOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Budget
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
               {budgets.map((budget: any) => (
-                <Card key={budget.id}>
+                <Card 
+                  key={budget.id} 
+                  className="hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={(e) => handleBudgetClick(budget.id, e)}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-lg">{budget.name || 'Unnamed Project'}</h3>
+                        <h3 className="font-semibold text-lg">
+                          <Link href={`/budgets/${budget.id}`} className="hover:underline">
+                            {budget.name || 'Unnamed Project'}
+                          </Link>
+                        </h3>
                         <div className="flex items-center space-x-2">
                           <Badge variant="outline">{budget.currency}</Badge>
                           <Badge className={getStatusColor(budget.status)}>
@@ -251,23 +578,27 @@ export default function BudgetsPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
+                          <DropdownMenuItem asChild>
+                            <Link href={`/budgets/${budget.id}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Budget
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Receipt className="mr-2 h-4 w-4" />
-                            Add Expense
+                          <DropdownMenuItem asChild>
+                            <Link href={`/budgets/${budget.id}`}>
+                              <Receipt className="mr-2 h-4 w-4" />
+                              Add Expense
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600">

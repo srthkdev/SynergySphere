@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { chatMessages } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 // Schema for POST request
@@ -11,7 +13,7 @@ const MarkAsReadSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // Authenticate user
-    const session = await auth();
+    const session = await auth.api.getSession({ headers: req.headers });
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -42,22 +44,25 @@ export async function POST(req: NextRequest) {
     for (const messageId of messageIds) {
       try {
         // Get the current message to check existing readBy array
-        const message = await db.chatMessage.findUnique({
-          where: { id: messageId },
-          select: { readBy: true },
-        });
+        const messages = await db
+          .select({ readBy: chatMessages.readBy })
+          .from(chatMessages)
+          .where(eq(chatMessages.id, messageId))
+          .limit(1);
         
-        if (message) {
+        if (messages.length > 0) {
+          const message = messages[0];
           // Check if the user has already read this message
-          const readBy = message.readBy || [];
+          const readBy = (message.readBy as string[]) || [];
           if (!readBy.includes(session.user.id)) {
             // Update the message to add the current user to readBy
-            await db.chatMessage.update({
-              where: { id: messageId },
-              data: {
+            await db
+              .update(chatMessages)
+              .set({
                 readBy: [...readBy, session.user.id],
-              },
-            });
+                updatedAt: new Date(),
+              })
+              .where(eq(chatMessages.id, messageId));
             updatedCount++;
           }
         }

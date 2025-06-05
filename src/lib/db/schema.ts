@@ -91,6 +91,7 @@ export const task = pgTable("task", {
   description: text("description"),
   status: taskStatusEnum("status").notNull().default('TODO'),
   dueDate: timestamp("due_date"),
+  estimatedHours: text("estimated_hours"),
   projectId: uuid("project_id")
     .notNull()
     .references(() => project.id, { onDelete: "cascade" }),
@@ -146,9 +147,15 @@ export const budget = pgTable("budget", {
     .notNull()
     .references(() => project.id, { onDelete: "cascade" })
     .unique(), // One budget per project
+  name: text("name").notNull(), // Changed to not null
+  description: text("description"),
   totalBudget: integer("total_budget").notNull().default(0), // in cents to avoid floating point issues
   spentAmount: integer("spent_amount").notNull().default(0), // in cents
   currency: text("currency").notNull().default("USD"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  imageBase64: text("image_base64"),
+  imageType: text("image_type"),
   createdById: text("created_by_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -162,9 +169,14 @@ export const budgetEntry = pgTable("budget_entry", {
   budgetId: uuid("budget_id")
     .notNull()
     .references(() => budget.id, { onDelete: "cascade" }),
+  name: text("name"), // Expense name
   amount: integer("amount").notNull(), // in cents, can be negative for refunds
   description: text("description").notNull(),
   category: text("category").notNull().default("general"), // labor, materials, tools, etc.
+  startDate: timestamp("start_date"), // Expense period start
+  endDate: timestamp("end_date"), // Expense period end
+  imageBase64: text("image_base64"), // Base64 encoded image data
+  imageType: text("image_type"), // MIME type of the image
   taskId: uuid("task_id")
     .references(() => task.id, { onDelete: "set null" }), // optional link to specific task
   createdById: text("created_by_id")

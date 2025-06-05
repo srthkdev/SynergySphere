@@ -1,0 +1,1 @@
+ALTER TABLE "budget" ALTER COLUMN "name" DROP NOT NULL;

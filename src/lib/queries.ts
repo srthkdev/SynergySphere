@@ -255,6 +255,97 @@ export const fetchBudgets = async () => {
   return response.json();
 };
 
+export const createBudget = async (data: { 
+  projectId: string; 
+  name: string;
+  description?: string;
+  totalBudget: number; 
+  currency: string;
+  startDate?: string;
+  endDate?: string;
+  imageBase64?: string;
+  imageType?: string;
+}) => {
+  const response = await fetch('/api/budgets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectId: data.projectId,
+      name: data.name,
+      description: data.description,
+      totalBudget: data.totalBudget * 100, // Convert to cents
+      currency: data.currency,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      imageBase64: data.imageBase64,
+      imageType: data.imageType
+    }),
+    credentials: 'include'
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
+    throw new Error(errorData.error || 'Failed to create budget');
+  }
+  
+  return response.json();
+};
+
+export const fetchBudgetEntries = async (budgetId: string) => {
+  const response = await fetch(`/api/budget-entries?budgetId=${budgetId}`, {
+    credentials: 'include'
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
+    throw new Error(errorData.error || 'Failed to fetch budget entries');
+  }
+  
+  return response.json();
+};
+
+export const createBudgetEntry = async (data: {
+  budgetId: string;
+  amount: number;
+  description: string;
+  category: string;
+  taskId?: string;
+}) => {
+  const response = await fetch('/api/budget-entries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      budgetId: data.budgetId,
+      amount: data.amount * 100, // Convert to cents
+      description: data.description,
+      category: data.category,
+      taskId: data.taskId
+    }),
+    credentials: 'include'
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
+    throw new Error(errorData.error || 'Failed to create budget entry');
+  }
+  
+  return response.json();
+};
+
+export const deleteBudgetEntry = async (entryId: string) => {
+  const response = await fetch(`/api/budget-entries/${entryId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
+    throw new Error(errorData.error || 'Failed to delete budget entry');
+  }
+  
+  return response.json();
+};
+
 // Chat API functions
 export const fetchMessages = async (
   projectId: string, 
