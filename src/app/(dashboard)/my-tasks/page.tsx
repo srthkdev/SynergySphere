@@ -131,26 +131,10 @@ const isOverdue = (dueDate: string, status: string) => {
   return new Date(dueDate) < new Date() && status !== "completed"
 }
 
-// Transform ImportedTask to view-compatible Task
-const transformTaskForViews = (task: ImportedTask): any => ({
-  ...task,
-  status: task.status === 'TODO' ? 'todo' : 
-          task.status === 'IN_PROGRESS' ? 'in-progress' : 
-          task.status === 'DONE' ? 'completed' : 'todo',
-  priority: task.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
-  assignedBy: 'Project Manager',
-  assignedByAvatar: '',
-  tags: [],
-  progress: task.status === 'DONE' ? 100 : task.status === 'IN_PROGRESS' ? 50 : 0,
-  estimatedHours: 8,
-  loggedHours: task.status === 'DONE' ? 8 : task.status === 'IN_PROGRESS' ? 4 : 0,
-  project: 'Project',
-  description: task.description || ''
-});
-
 export default function MyTasksPage() {
   const router = useRouter();
   const [tasks, setTasks] = useState<ImportedTask[]>([]);
+  const [projects, setProjects] = useState<ProjectType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -160,11 +144,69 @@ export default function MyTasksPage() {
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('all'); // For priority filter dropdown
   const [showFilters, setShowFilters] = useState(false); // To toggle filter panel
 
+  // Transform ImportedTask to view-compatible Task
+  const transformTaskForViews = (task: ImportedTask): any => {
+    // Find the project name from the projects array
+    // Handle case where projects haven't loaded yet
+    const project = projects.find((p: ProjectType) => p.id === task.projectId);
+    const projectName = project?.name || (projects.length === 0 ? 'Loading...' : 'Unknown Project');
+    
+    return {
+      ...task,
+      status: task.status === 'TODO' ? 'todo' : 
+              task.status === 'IN_PROGRESS' ? 'in-progress' : 
+              task.status === 'DONE' ? 'completed' : 'todo',
+      priority: task.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
+      priorityLevel: 'P-0', // Placeholder - will be set by priority system
+      assignedBy: 'Project Manager',
+      assignedByAvatar: '',
+      tags: [],
+      progress: task.status === 'DONE' ? 100 : task.status === 'IN_PROGRESS' ? 50 : 0,
+      estimatedHours: 8,
+      loggedHours: task.status === 'DONE' ? 8 : task.status === 'IN_PROGRESS' ? 4 : 0,
+      project: projectName,
+      projectId: task.projectId || '',
+      dueDate: task.dueDate || null,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      createdById: task.createdById,
+      description: task.description || ''
+    };
+  };
   
-  // Fetch tasks from API
+  // Fetch tasks and projects from API
   useEffect(() => {
-    fetchTasks();
+    fetchData();
   }, []);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+      
+      // Fetch both tasks and projects in parallel
+      const [tasksResponse, projectsResponse] = await Promise.all([
+        fetch('/api/tasks'),
+        fetch('/api/projects')
+      ]);
+      
+      if (!tasksResponse.ok) {
+        throw new Error('Failed to fetch tasks');
+      }
+      if (!projectsResponse.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const tasksData = await tasksResponse.json();
+      const projectsData = await projectsResponse.json();
+      
+      setTasks(tasksData);
+      setProjects(projectsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function fetchTasks() {
     try {
@@ -201,7 +243,7 @@ export default function MyTasksPage() {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.projectId.toLowerCase().includes(searchTerm.toLowerCase());
+                         task.projectId?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const priorityFilter = selectedPriorityFilter as ImportedTask['priority'] | 'all';
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
@@ -437,7 +479,13 @@ export default function MyTasksPage() {
         </div>
 
         <TabsContent value={selectedTab} className="space-y-4">
-          {filteredTasks.length === 0 ? (
+          {loading ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <div className="text-lg">Loading tasks and projects...</div>
+              </CardContent>
+            </Card>
+          ) : filteredTasks.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8">
                 <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />

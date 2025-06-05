@@ -21,17 +21,19 @@ export function TaskChatTab({ task }: TaskChatTabProps) {
   // Fetch project members to show who's in the chat
   const { data: members = [] } = useQuery({
     queryKey: ['projectMembers', task.projectId],
-    queryFn: () => fetchProjectMembers(task.projectId),
+    queryFn: () => fetchProjectMembers(task.projectId!),
     enabled: !!task.projectId,
   });
 
   // Join task chat room on component mount, leave on unmount
   useEffect(() => {
-    joinChatRoom(task.projectId, task.id);
-    
-    return () => {
-      leaveChatRoom(task.projectId, task.id);
-    };
+    if (task.projectId) {
+      joinChatRoom(task.projectId, task.id);
+      
+      return () => {
+        leaveChatRoom(task.projectId!, task.id);
+      };
+    }
   }, [task.projectId, task.id, joinChatRoom, leaveChatRoom]);
 
   return (
@@ -66,18 +68,22 @@ export function TaskChatTab({ task }: TaskChatTabProps) {
       </CardHeader>
       
       {/* Chat messages */}
-      <ChatWindow 
-        projectId={task.projectId} 
-        taskId={task.id}
-        height="h-[350px]"
-      />
-      
-      {/* Chat input */}
-      <ChatInput 
-        projectId={task.projectId}
-        taskId={task.id}
-        placeholder="Type a message about this task, use @ to mention team members..."
-      />
+      {task.projectId && (
+        <>
+          <ChatWindow 
+            projectId={task.projectId} 
+            taskId={task.id}
+            height="h-[350px]"
+          />
+          
+          {/* Chat input */}
+          <ChatInput 
+            projectId={task.projectId}
+            taskId={task.id}
+            placeholder="Type a message about this task, use @ to mention team members..."
+          />
+        </>
+      )}
     </Card>
   );
 } 

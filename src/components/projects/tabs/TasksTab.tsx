@@ -45,7 +45,8 @@ interface FrontendTask {
   description: string;
   status: 'todo' | 'in-progress' | 'completed';
   priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
+  priorityLevel: string;
+  dueDate: string | null | undefined;
   assignedBy: string;
   assignedByAvatar: string;
   tags: string[];
@@ -77,34 +78,7 @@ interface OptimisticTaskContext {
   previousTasks?: BackendTask[];
 }
 
-// Convert backend task format to frontend format
-const convertTaskFormat = (backendTask: BackendTask, userId?: string): FrontendTask => {
-  return {
-    id: backendTask.id,
-    title: backendTask.title,
-    description: backendTask.description || '',
-    status: backendTask.status === 'TODO' ? 'todo' : 
-            backendTask.status === 'IN_PROGRESS' ? 'in-progress' : 
-            backendTask.status === 'DONE' ? 'completed' : 'todo',
-    priority: backendTask.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
-    dueDate: backendTask.dueDate || undefined,
-    assignedBy: backendTask.assigneeId ? 'Project Manager' : 'Unassigned',
-    assignedByAvatar: 'https://ui-avatars.com/api/?name=Project+Manager&background=3b82f6',
-    tags: [],
-    progress: backendTask.status === 'DONE' ? 100 : 
-              backendTask.status === 'IN_PROGRESS' ? 50 : 0,
-    estimatedHours: 8,
-    loggedHours: backendTask.status === 'DONE' ? 8 : 
-                 backendTask.status === 'IN_PROGRESS' ? 4 : 0,
-    project: 'Current Project',
-    projectId: backendTask.projectId,
-    createdAt: backendTask.createdAt,
-    updatedAt: backendTask.updatedAt,
-    createdById: backendTask.createdById || userId || 'unknown'
-  };
-};
-
-export function TasksTab({ projectId }: { projectId: string }) {
+export function TasksTab({ projectId, projectName }: { projectId: string; projectName?: string }) {
   const queryClient = useQueryClient();
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<BackendTask | null>(null);
@@ -116,6 +90,34 @@ export function TasksTab({ projectId }: { projectId: string }) {
   const [selectedPriority, setSelectedPriority] = useState<TaskPriority | 'ALL'>('ALL');
   const [currentView, setCurrentView] = useState<ViewMode>('kanban');
   const router = useRouter();
+
+  // Convert backend task format to frontend format
+  const convertTaskFormat = (backendTask: BackendTask, userId?: string): FrontendTask => {
+    return {
+      id: backendTask.id,
+      title: backendTask.title,
+      description: backendTask.description || '',
+      status: backendTask.status === 'TODO' ? 'todo' : 
+              backendTask.status === 'IN_PROGRESS' ? 'in-progress' : 
+              backendTask.status === 'DONE' ? 'completed' : 'todo',
+      priority: backendTask.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
+      priorityLevel: 'P-0', // Placeholder - will be set by priority system
+      dueDate: backendTask.dueDate || null,
+      assignedBy: backendTask.assigneeId ? 'Project Manager' : 'Unassigned',
+      assignedByAvatar: 'https://ui-avatars.com/api/?name=Project+Manager&background=3b82f6',
+      tags: [],
+      progress: backendTask.status === 'DONE' ? 100 : 
+                backendTask.status === 'IN_PROGRESS' ? 50 : 0,
+      estimatedHours: 8,
+      loggedHours: backendTask.status === 'DONE' ? 8 : 
+                   backendTask.status === 'IN_PROGRESS' ? 4 : 0,
+      project: projectName || 'Current Project',
+      projectId: backendTask.projectId || '',
+      createdAt: backendTask.createdAt,
+      updatedAt: backendTask.updatedAt,
+      createdById: backendTask.createdById || userId || 'unknown'
+    };
+  };
 
   const { data: backendTasks = [], isLoading, error: tasksError } = useQuery<BackendTask[], Error>({
     queryKey: ['tasks', projectId],

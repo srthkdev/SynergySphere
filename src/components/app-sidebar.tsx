@@ -79,20 +79,6 @@ const navMain = [
     title: "Analytics",
     url: "/analytics",
     icon: PieChart,
-    items: [
-      {
-        title: "Reports",
-        url: "/analytics/reports",
-      },
-      {
-        title: "Insights",
-        url: "/analytics/insights",
-      },
-      {
-        title: "Metrics",
-        url: "/analytics/metrics",
-      },
-    ],
   },
   {
     title: "Settings",

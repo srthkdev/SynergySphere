@@ -94,9 +94,15 @@ export interface Notification {
 export interface Budget {
   id: string;
   projectId: string;
+  name: string;
+  description?: string;
   totalBudget: number;
   spentAmount: number;
   currency: string;
+  startDate?: string;
+  endDate?: string;
+  imageBase64?: string;
+  imageType?: string;
   createdById: string;
   createdAt: string;
   updatedAt: string;

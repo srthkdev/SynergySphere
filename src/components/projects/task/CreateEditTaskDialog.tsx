@@ -83,8 +83,8 @@ export function CreateEditTaskDialog({
           status: taskToEdit.status,
           dueDate: taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().substring(0, 10) : "",
           assigneeId: taskToEdit.assigneeId,
-          priority: taskToEdit.priority || 'MEDIUM',
-          attachmentUrl: taskToEdit.attachmentUrl || null,
+          priority: taskToEdit.priority === 'URGENT' ? 'HIGH' : (taskToEdit.priority || 'MEDIUM'),
+          attachmentUrl: null,
         }
       : defaultFormValues,
   });
@@ -132,12 +132,9 @@ export function CreateEditTaskDialog({
 
   // Set image preview when task to edit has an attachment
   useEffect(() => {
-    if (taskToEdit?.attachmentUrl) {
-      setImagePreview(taskToEdit.attachmentUrl);
-    } else {
-      setImagePreview(null);
-      setImageFile(null);
-    }
+    // Task type doesn't have attachmentUrl, so always reset
+    setImagePreview(null);
+    setImageFile(null);
   }, [taskToEdit]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,14 +180,12 @@ export function CreateEditTaskDialog({
       }
       
       const apiData = {
-        projectId: taskData.projectId,
         title: taskData.title?.trim() === "" ? "Untitled Task" : taskData.title,
-        description: taskData.description?.trim() === "" ? null : taskData.description,
+        description: taskData.description?.trim() === "" ? undefined : taskData.description,
         status: taskData.status,
-        dueDate: taskData.dueDate?.trim() === "" ? null : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null),
+        dueDate: taskData.dueDate?.trim() === "" ? undefined : (taskData.dueDate ? new Date(taskData.dueDate).toISOString() : undefined),
         priority: taskData.priority,
-        attachmentUrl: attachmentUrl,
-        assigneeId: taskData.assigneeId, // Simply pass through the assigneeId - it's already null if unassigned
+        assigneeId: taskData.assigneeId || undefined, // Convert null to undefined
       };
 
       console.log("Final API payload:", apiData);
