@@ -7,29 +7,33 @@ import { eq, sum } from "drizzle-orm";
 // DELETE /api/budget-entries/[id] - Delete a budget entry
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   return requireAuth(request, async (user: AuthenticatedUser) => {
     try {
-      const { id: entryId } = await params;
+      const { id } = params;
 
-      // Get the budget entry to find the budget ID
-      const entry = await db
-        .select({ budgetId: budgetEntry.budgetId })
+      // Get the budget entry to find its budget ID
+      const entryResult = await db
+        .select({
+          budgetId: budgetEntry.budgetId
+        })
         .from(budgetEntry)
-        .where(eq(budgetEntry.id, entryId))
+        .where(eq(budgetEntry.id, id))
         .limit(1);
 
-      if (!entry.length) {
+      if (entryResult.length === 0) {
         return NextResponse.json({ error: 'Budget entry not found' }, { status: 404 });
       }
 
-      const budgetId = entry[0].budgetId;
+      const budgetId = entryResult[0].budgetId;
 
-      // Delete the budget entry
-      await db.delete(budgetEntry).where(eq(budgetEntry.id, entryId));
+      // Delete the entry
+      await db
+        .delete(budgetEntry)
+        .where(eq(budgetEntry.id, id));
 
-      // Recalculate the spent amount
+      // Recalculate the budget's spent amount
       const spentResult = await db
         .select({ total: sum(budgetEntry.amount) })
         .from(budgetEntry)
@@ -46,7 +50,7 @@ export async function DELETE(
         })
         .where(eq(budget.id, budgetId));
 
-      return NextResponse.json({ message: 'Budget entry deleted successfully' });
+      return NextResponse.json({ success: true });
     } catch (error) {
       console.error('Error deleting budget entry:', error);
       return NextResponse.json({ error: 'Failed to delete budget entry' }, { status: 500 });

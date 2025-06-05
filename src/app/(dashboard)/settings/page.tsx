@@ -25,7 +25,7 @@ import {
   Sun,
   Monitor
 } from "lucide-react"
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { toast } from "sonner";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
