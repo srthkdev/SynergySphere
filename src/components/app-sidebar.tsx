@@ -47,6 +47,11 @@ const navMain = [
     icon: ListTodo,
   },
   {
+    title: "AI Assistant",
+    url: "/ai-assistant",
+    icon: Bot,
+  },
+  {
     title: "Inbox",
     url: "/inbox",
     icon: Inbox,

@@ -19,6 +19,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -174,18 +176,86 @@ export default function AIAgentDBChat() {
     }, 2000);
   };
 
-  const formatContent = (content: string) => {
-    // Simple markdown-like formatting
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>')
-      .replace(/\n/g, '<br/>');
+  // Custom components for ReactMarkdown
+  const markdownComponents = {
+    code: ({ node, inline, className, children, ...props }: any) => {
+      if (inline) {
+        return (
+          <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+            {children}
+          </code>
+        );
+      }
+      return (
+        <pre className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg overflow-x-auto my-2">
+          <code className="text-sm font-mono" {...props}>
+            {children}
+          </code>
+        </pre>
+      );
+    },
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-2 italic text-gray-700 dark:text-gray-300">
+        {children}
+      </blockquote>
+    ),
+    table: ({ children }: any) => (
+      <div className="overflow-x-auto my-2">
+        <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
+          {children}
+        </table>
+      </div>
+    ),
+    th: ({ children }: any) => (
+      <th className="border border-gray-300 dark:border-gray-600 px-3 py-2 bg-gray-100 dark:bg-gray-800 font-semibold text-left">
+        {children}
+      </th>
+    ),
+    td: ({ children }: any) => (
+      <td className="border border-gray-300 dark:border-gray-600 px-3 py-2">
+        {children}
+      </td>
+    ),
+    ul: ({ children }: any) => (
+      <ul className="list-disc list-inside my-2 space-y-1">
+        {children}
+      </ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="list-decimal list-inside my-2 space-y-1">
+        {children}
+      </ol>
+    ),
+    h1: ({ children }: any) => (
+      <h1 className="text-xl font-bold mb-2 mt-3 first:mt-0">{children}</h1>
+    ),
+    h2: ({ children }: any) => (
+      <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0">{children}</h2>
+    ),
+    h3: ({ children }: any) => (
+      <h3 className="text-base font-bold mb-2 mt-2 first:mt-0">{children}</h3>
+    ),
+    h4: ({ children }: any) => (
+      <h4 className="text-sm font-bold mb-1 mt-2 first:mt-0">{children}</h4>
+    ),
+    p: ({ children }: any) => (
+      <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+    ),
+    a: ({ href, children }: any) => (
+      <a 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-blue-600 dark:text-blue-400 hover:underline"
+      >
+        {children}
+      </a>
+    ),
   };
 
   return (
-    <Card className="w-full h-[700px] flex flex-col">
-      <CardHeader className="pb-4 border-b">
+    <Card className="w-full h-full max-h-[calc(100vh-14rem)] flex flex-col">
+      <CardHeader className="pb-4 border-b flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -205,8 +275,8 @@ export default function AIAgentDBChat() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
+        <ScrollArea className="flex-1 px-4 min-h-0" ref={scrollAreaRef}>
           <div className="space-y-6 py-4">
             {messages.map((message) => (
               <div key={message.id} className="group">
@@ -232,12 +302,20 @@ export default function AIAgentDBChat() {
                         ? 'bg-blue-600 text-white ml-auto'
                         : 'bg-gray-50 text-gray-900 border'
                     }`}>
-                      <div 
-                        className="text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{ 
-                          __html: message.role === 'assistant' ? formatContent(message.content) : message.content 
-                        }}
-                      />
+                      {message.role === 'assistant' ? (
+                        <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 dark:prose-headings:text-gray-100 dark:prose-p:text-gray-200 dark:prose-strong:text-gray-100">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="text-sm leading-relaxed">
+                          {message.content}
+                        </div>
+                      )}
                     </div>
 
                     {/* Message Actions */}
@@ -315,7 +393,7 @@ export default function AIAgentDBChat() {
         </ScrollArea>
         
         {/* Input Area */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t flex-shrink-0">
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="relative">
               {isExpanded ? (
@@ -325,7 +403,7 @@ export default function AIAgentDBChat() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about your projects, tasks, team performance, or get data-driven insights..."
                   disabled={isLoading}
-                  className="min-h-[80px] resize-none pr-12 text-sm"
+                  className="min-h-[80px] max-h-[120px] resize-none pr-12 text-sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
