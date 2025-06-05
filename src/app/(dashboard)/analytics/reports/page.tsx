@@ -350,8 +350,7 @@ export default function ReportsPage() {
                     { date: '2024-01-17', completions: 2 },
                     { date: '2024-01-18', completions: 4 },
                     { date: '2024-01-19', completions: 6 },
-                    { date: '2024-01-20', completions: 3 },
-                    { date: '2024-01-21', completions: 4 },
+                   
                   ],
                   priorityDistribution: { high: 12, medium: 25, low: 15 },
                   projectStatusDistribution: { 
@@ -660,23 +659,23 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[200px] space-y-3">
+              <div className="h-[300px] space-y-4">
                 {charts.dailyCompletions.map((day, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground w-20">{day.date}</span>
-                    <div className="flex-1 mx-4">
-                      <div className="bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                  <div key={index} className="flex items-center">
+                    <span className="text-sm text-muted-foreground w-24">{day.date}</span>
+                    <div className="flex-1 mx-3">
+                      <div className="bg-blue-100 rounded-lg h-9 relative overflow-hidden">
                         <div 
-                          className="bg-blue-500 h-full rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-3"
                           style={{ 
-                            width: `${Math.max(15, Math.min(100, (day.completions / Math.max(1, Math.max(...charts.dailyCompletions.map(d => d.completions)))) * 100))}%` 
+                            width: `${Math.max(10, Math.min(95, (day.completions / 6) * 100))}%` 
                           }}
                         >
-                          <span className="text-white text-xs font-medium">{day.completions}</span>
+                          <span className="text-sm font-medium text-white">{day.completions}</span>
                         </div>
                       </div>
                     </div>
-                    <span className="text-sm font-medium w-16">{day.completions} tasks</span>
+                    <span className="text-sm font-medium w-20 pl-2">{day.completions} tasks</span>
                   </div>
                 ))}
               </div>

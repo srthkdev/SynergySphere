@@ -775,23 +775,28 @@ export default function InsightsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[200px] space-y-2">
+                <div className="h-[200px] space-y-3">
                   {charts.dailyCompletions.map((day, index) => (
                     <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground w-16">{day.date}</span>
-                      <div className="flex-1 mx-4">
-                        <div className="bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                      <span className="text-sm text-muted-foreground w-20">{day.date}</span>
+                      <div className="flex-1 mx-2">
+                        <div className="bg-blue-100 rounded-full h-5 relative overflow-hidden">
                           <div 
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-300 flex items-center justify-end pr-2"
                             style={{ 
-                              width: `${Math.max(10, Math.min(100, (day.completions / Math.max(1, Math.max(...charts.dailyCompletions.map(d => d.completions)))) * 100))}%` 
+                              width: `${Math.max(8, Math.min(98, (day.completions / 6) * 100))}%` 
                             }}
-                          ></div>
+                          >
+                            <span className="text-xs font-medium text-white">{day.completions}</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="text-sm font-medium w-8">{day.completions}</span>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 pt-4 border-t text-center">
+                  <div className="text-lg font-medium">{recentActivity.avgDailyCompletions}</div>
+                  <p className="text-sm text-muted-foreground">Average Daily Completions</p>
                 </div>
               </CardContent>
             </Card>
