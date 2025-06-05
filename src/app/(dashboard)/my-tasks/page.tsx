@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from 'next/navigation';
-import { Project as ProjectType, Task } from '@/types';
+import { Project as ProjectType, Task as ImportedTask } from '@/types';
 
 // Import the new view components
 import { ViewSwitcher, ViewMode } from '@/components/ui/view-switcher';
@@ -131,9 +131,26 @@ const isOverdue = (dueDate: string, status: string) => {
   return new Date(dueDate) < new Date() && status !== "completed"
 }
 
+// Transform ImportedTask to view-compatible Task
+const transformTaskForViews = (task: ImportedTask): any => ({
+  ...task,
+  status: task.status === 'TODO' ? 'todo' : 
+          task.status === 'IN_PROGRESS' ? 'in-progress' : 
+          task.status === 'DONE' ? 'completed' : 'todo',
+  priority: task.priority?.toLowerCase() as 'low' | 'medium' | 'high' || 'medium',
+  assignedBy: 'Project Manager',
+  assignedByAvatar: '',
+  tags: [],
+  progress: task.status === 'DONE' ? 100 : task.status === 'IN_PROGRESS' ? 50 : 0,
+  estimatedHours: 8,
+  loggedHours: task.status === 'DONE' ? 8 : task.status === 'IN_PROGRESS' ? 4 : 0,
+  project: 'Project',
+  description: task.description || ''
+});
+
 export default function MyTasksPage() {
   const router = useRouter();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<ImportedTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,11 +184,11 @@ export default function MyTasksPage() {
 
   // Calculate task statistics
   const totalTasks = tasks.length;
-  const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
-  const completedTasks = tasks.filter(task => task.status === 'completed').length;
+  const inProgressTasks = tasks.filter(task => task.status === 'IN_PROGRESS').length;
+  const completedTasks = tasks.filter(task => task.status === 'DONE').length;
   const overdueTasks = tasks.filter(task => {
     if (!task.dueDate) return false;
-    return new Date(task.dueDate) < new Date() && task.status !== 'completed';
+    return new Date(task.dueDate) < new Date() && task.status !== 'DONE';
   }).length;
 
   // Update task stats
@@ -183,22 +200,22 @@ export default function MyTasksPage() {
   // Filter tasks based on search, tab, and priority filter
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.project.toLowerCase().includes(searchTerm.toLowerCase());
+                         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.projectId.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const priorityFilter = selectedPriorityFilter as Task['priority'] | 'all';
+    const priorityFilter = selectedPriorityFilter as ImportedTask['priority'] | 'all';
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
 
     let matchesTab = false;
     switch (selectedTab) {
       case 'active':
-        matchesTab = ['todo', 'in-progress'].includes(task.status);
+        matchesTab = ['TODO', 'IN_PROGRESS'].includes(task.status);
         break;
       case 'completed':
-        matchesTab = task.status === 'completed';
+        matchesTab = task.status === 'DONE';
         break;
       case 'overdue':
-        matchesTab = !!(task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed');
+        matchesTab = !!(task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'DONE');
         break;
       default: // 'all' tab
         matchesTab = true;
@@ -208,7 +225,7 @@ export default function MyTasksPage() {
   });
 
   // Update task status
-  const updateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+  const updateTaskStatus = async (taskId: string, newStatus: ImportedTask['status']) => {
     try {
       const response = await fetch('/api/tasks', {
         method: 'PUT',
@@ -233,7 +250,7 @@ export default function MyTasksPage() {
   };
 
   // Handle task updates from views
-  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+  const handleTaskUpdate = async (taskId: string, updates: Partial<ImportedTask>) => {
     try {
       const response = await fetch('/api/tasks', {
         method: 'PUT',
@@ -258,7 +275,7 @@ export default function MyTasksPage() {
   };
 
   // Handle task creation
-  const handleTaskCreate = async (status?: Task['status']) => {
+  const handleTaskCreate = async (status?: ImportedTask['status']) => {
     try {
       const newTask = {
         title: 'New Task',
@@ -437,16 +454,30 @@ export default function MyTasksPage() {
             <div className={currentView === 'kanban' ? 'h-[600px]' : ''}>
               {currentView === 'kanban' && (
                 <KanbanView 
-                  tasks={filteredTasks}
-                  onTaskUpdate={handleTaskUpdate}
-                  onTaskCreate={handleTaskCreate}
+                  tasks={filteredTasks.map(transformTaskForViews)}
+                  onTaskUpdate={(taskId, updates) => {
+                    const convertedUpdates: Partial<ImportedTask> = {
+                      ...updates,
+                      status: updates.status === 'todo' ? 'TODO' : 
+                              updates.status === 'in-progress' ? 'IN_PROGRESS' : 
+                              updates.status === 'completed' ? 'DONE' : undefined,
+                      priority: updates.priority ? updates.priority.toUpperCase() as ImportedTask['priority'] : undefined
+                    };
+                    handleTaskUpdate(taskId, convertedUpdates);
+                  }}
+                  onTaskCreate={(status) => {
+                    const convertedStatus = status === 'todo' ? 'TODO' : 
+                                          status === 'in-progress' ? 'IN_PROGRESS' : 
+                                          status === 'completed' ? 'DONE' : 'TODO';
+                    handleTaskCreate(convertedStatus);
+                  }}
                   onTaskClick={handleTaskClick}
                 />
               )}
               
               {currentView === 'gallery' && (
                 <GalleryView 
-                  items={filteredTasks}
+                  items={filteredTasks.map(transformTaskForViews)}
                   type="tasks"
                   onItemUpdate={handleItemUpdate}
                   onItemClick={handleTaskClick}
@@ -456,7 +487,7 @@ export default function MyTasksPage() {
               
               {currentView === 'list' && (
                 <ListView 
-                  items={filteredTasks}
+                  items={filteredTasks.map(transformTaskForViews)}
                   type="tasks"
                   onItemUpdate={handleItemUpdate}
                   onItemClick={handleTaskClick}

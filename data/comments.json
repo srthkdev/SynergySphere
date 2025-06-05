@@ -28,5 +28,15 @@
     "createdAt": "2025-06-05T02:26:08.223Z",
     "messageType": "text",
     "edited": false
+  },
+  {
+    "id": "1749092943428",
+    "taskId": "66d71075-ca32-4221-a01c-ad5162f2d66e",
+    "text": "hi",
+    "authorName": "Current User",
+    "authorAvatar": "https://ui-avatars.com/api/?name=Current%20User&background=3b82f6&color=ffffff",
+    "createdAt": "2025-06-05T03:09:03.428Z",
+    "messageType": "text",
+    "edited": false
   }
 ]
