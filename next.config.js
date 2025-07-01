@@ -42,8 +42,10 @@ const nextConfig = {
     domains: [],
     unoptimized: false,
   },
-  // Output file tracing for better Vercel deployment
-  output: 'standalone',
+  // Remove standalone output for Vercel
+  experimental: {
+    serverComponentsExternalPackages: ['@node-rs/argon2', '@node-rs/bcrypt'],
+  },
 };
 
 module.exports = nextConfig; 
