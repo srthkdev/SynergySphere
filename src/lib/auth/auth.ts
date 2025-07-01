@@ -12,6 +12,30 @@ const schema = {
     verification,
 }
 
+// Ensure we have a database connection
+if (!db) {
+    throw new Error('Database connection is required for authentication');
+}
+
+// Configure social providers only if credentials are available
+const socialProviders: any = {};
+
+// Always include Google if credentials are available
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    socialProviders.google = {
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    };
+}
+
+// Only include GitHub if credentials are available
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+    socialProviders.github = {
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    };
+}
+
 export const auth = betterAuth({
 
     database: drizzleAdapter(db, {
@@ -45,16 +69,7 @@ export const auth = betterAuth({
             enabled: true,
         },
     },
-    socialProviders: { 
-        google: { 
-           clientId: process.env.GOOGLE_CLIENT_ID as string, 
-           clientSecret: process.env.GOOGLE_CLIENT_SECRET as string, 
-        },
-        github: { 
-           clientId: process.env.GITHUB_CLIENT_ID as string, 
-           clientSecret: process.env.GITHUB_CLIENT_SECRET as string, 
-        }
-    },
+    socialProviders,
    
     plugins: [nextCookies()],
 });
