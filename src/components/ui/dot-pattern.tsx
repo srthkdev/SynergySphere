@@ -72,8 +72,9 @@ export function DotPattern({
   className,
   glow = false,
   maxDots = 12000,
+  color,
   ...props
-}: DotPatternProps) {
+}: DotPatternProps & { color?: string }) {
   const id = useId();
   const containerRef = useRef<SVGSVGElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -168,6 +169,7 @@ export function DotPattern({
         "pointer-events-none absolute inset-0 h-full w-full",
         className,
       )}
+      color={color}
       {...props}
     >
       <defs>

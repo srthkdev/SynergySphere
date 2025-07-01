@@ -1,0 +1,37 @@
+$ next build
+   ▲ Next.js 15.3.3
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ✓ Compiled successfully in 2000ms
+   Linting and checking validity of types ...
+   Collecting page data ...
+[2m2025-07-01T18:43:51.090Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.095Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.103Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.117Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.120Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.122Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.127Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.135Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+[2m2025-07-01T18:43:51.182Z[0m [33mWARN[0m [1m[Better Auth]:[0m Social provider github is missing clientId or clientSecret
+ ⚠ Using edge runtime on a page currently disables static generation for that page
+   Generating static pages (0/40) ...
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/reset-password". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at a (/Users/sarthak/Projects/work/SynergySphere/.next/server/chunks/7011.js:3:57026)
+    at d (/Users/sarthak/Projects/work/SynergySphere/.next/server/chunks/7011.js:5:45005)
+    at b (/Users/sarthak/Projects/work/SynergySphere/.next/server/app/(auth)/reset-password/page.js:1:7724)
+    at nF (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:46843)
+    at nH (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:48618)
+    at nW (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:67762)
+    at nz (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:65337)
+    at nB (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:47195)
+    at nH (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:48664)
+    at nH (/Users/sarthak/Projects/work/SynergySphere/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:64688)
+Error occurred prerendering page "/reset-password". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /(auth)/reset-password/page: /reset-password, exiting the build.
+ ⨯ Next.js build worker exited with code: 1 and signal: null
+error: script "build" exited with code 1

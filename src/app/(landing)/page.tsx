@@ -13,9 +13,6 @@ import Footer from "@/components/ui/footer";
 import { PricingSection } from "@/components/ui/pricing-section";
 import { ChevronDown } from "lucide-react";
 import dynamic from 'next/dynamic'
-import ThemeToggler from '@/components/theme/toggler';
-import { ThemeProvider } from '@/components/theme/provider';
-import { useTheme } from 'next-themes'
 
 // Lazily load heavy components
 const MarqueeDemo = dynamic(() => import('@/components/magicui/marquee').then(mod => ({ default: mod.MarqueeDemo })), {
@@ -170,161 +167,174 @@ function FAQSection() {
   );
 }
 
-export default function Home() {
-  const { resolvedTheme } = useTheme();
-  // Determine background color based on theme
-  const bgColor = resolvedTheme === 'dark' ? 'bg-neutral-950' : 'bg-white';
-  const dotColor = resolvedTheme === 'dark' ? '#23272f' : '#e5e7eb';
+// Force light mode component - no theme dependency
+function LightModeBackground() {
+  // Always use light theme values
+  const bgColor = 'bg-white';
+  const dotColor = '#e5e7eb'; // Light theme dot color
+
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-      <div className={`relative w-full min-h-screen flex flex-col transition-colors duration-300 ${bgColor}`}>
-        <DotPattern
-          className="absolute inset-0 w-full h-full z-0"
-          glow={false}
-          width={18}
-          height={18}
-          maxDots={12000}
-          cr={1}
-          color={dotColor}
-        />
-        {/* Theme toggler in top-right */}
-        <div className="relative z-10 flex flex-col w-full min-h-screen">
-          <Header />
-          {/* Hero Section */}
-          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20 flex flex-col items-center justify-center">
-            <div className="max-w-4xl mx-auto text-center">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-gray-900 dark:text-white">
-                Your Team's <ColorfulText text="Intelligent" /> Task Management System
-              </h1>
-              <p className="text-base text-gray-600 dark:text-gray-300 mb-6 max-w-xl mx-auto leading-snug">
-                SynergySphere orchestrates your team's work intelligently. Eliminate scattered information, track progress clearly, manage resources effectively, prevent deadline surprises, and close communication gaps—all in one unified platform.
-              </p>
-              <div className="flex justify-center mb-6">
-                <div className={cn(
-                  "group rounded-full border border-gray-200 bg-white text-base transition-all ease-in hover:cursor-pointer hover:bg-gray-50 hover:shadow-sm"
-                )}>
-                  <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 transition ease-out text-gray-800 font-medium hover:text-neutral-600 hover:duration-300 hover:dark:text-neutral-400">
-                    <span>✨ Powered by</span>
-                    <Image src="/odoo.png" alt="Odoo" width={40} height={18} className="inline-block mx-1" />
-                  </AnimatedShinyText>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-                <SignupButton href="/dashboard">
-                  Get Started Free
-                </SignupButton>
-                <button 
-                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-blue-50 text-blue-600 text-sm font-medium py-3 px-8 rounded-md transition-colors border border-blue-100 hover:bg-blue-100"
-                >
-                  Explore Features
-                </button>
-              </div>
+    <div className={`relative w-full min-h-screen flex flex-col transition-colors duration-300 ${bgColor}`}>
+      <DotPattern
+        className="absolute inset-0 w-full h-full z-0"
+        glow={false}
+        width={18}
+        height={18}
+        maxDots={12000}
+        cr={1}
+        color={dotColor}
+      />
+      <HomeContent />
+    </div>
+  );
+}
+
+// Move the main content to a separate component
+function HomeContent() {
+  return (
+    <div className="relative z-10 flex flex-col w-full min-h-screen">
+      <Header />
+      {/* Hero Section */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20 flex flex-col items-center justify-center">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-gray-900">
+            Your Team's <ColorfulText text="Intelligent" forceTheme="light" /> Task Management System
+          </h1>
+          <p className="text-base text-gray-600 mb-6 max-w-xl mx-auto leading-snug">
+            SynergySphere orchestrates your team's work intelligently. Eliminate scattered information, track progress clearly, manage resources effectively, prevent deadline surprises, and close communication gaps—all in one unified platform.
+          </p>
+          <div className="flex justify-center mb-6">
+            <div className={cn(
+              "group rounded-full border border-gray-200 bg-white text-base transition-all ease-in hover:cursor-pointer hover:bg-gray-50 hover:shadow-sm"
+            )}>
+              <AnimatedShinyText className="inline-flex items-center justify-center px-4 py-1 transition ease-out text-gray-800 font-medium hover:text-neutral-600 hover:duration-300">
+                <span>✨ Powered by</span>
+                <Image src="/odoo.png" alt="Odoo" width={40} height={18} className="inline-block mx-1" />
+              </AnimatedShinyText>
             </div>
           </div>
-          {/* Tabs Section */}
-          <div id="features" className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-15 flex flex-col items-center justify-center">
-            <Tabs defaultValue="overview" className="w-full max-w-4xl">
-              <TabsList className="flex flex-wrap justify-center items-center gap-2 mb-6 bg-transparent p-0 w-full">
-                <TabsTrigger value="overview" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
-                  <LayoutDashboard className="w-5 h-5" /> Overview
-                </TabsTrigger>
-                <TabsTrigger value="task-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
-                  <Edit3 className="w-5 h-5" /> Task Management
-                </TabsTrigger>
-                <TabsTrigger value="team-communication" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
-                  <ListChecks className="w-5 h-5" /> Team Communication
-                </TabsTrigger>
-                <TabsTrigger value="resource-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
-                  <BarChart3 className="w-5 h-5" /> Resource Management
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
-                  <PieChart className="w-5 h-5" /> Analytics
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="overview">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
-                    <Image src="/placeholder.png" alt="overview" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
-                  </div>
-                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
-                    SynergySphere acts as your team's central nervous system—bringing scattered information together, providing clear visibility into progress, and helping you stay ahead of deadlines instead of constantly reacting.
-                  </p>
-                </div>
-              </TabsContent>
-              <TabsContent value="task-management">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
-                    <Image src="/placeholder.png" alt="task management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
-                  </div>
-                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
-                    Our intelligent task management system proactively surfaces potential issues before they become problems. Optimize resource allocation, prevent deadline surprises, and ensure your team is always working on what matters most.
-                  </p>
-                </div>
-              </TabsContent>
-              <TabsContent value="team-communication">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
-                    <Image src="/placeholder.png" alt="team communication" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
-                  </div>
-                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
-                    Close communication gaps with integrated team discussions. Keep everyone in the loop with contextual conversations tied directly to tasks, preventing important updates from getting buried in email or lost in scattered chats.
-                  </p>
-                </div>
-              </TabsContent>
-              <TabsContent value="resource-management">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
-                    <Image src="/placeholder.png" alt="resource management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
-                  </div>
-                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
-                    Eliminate resource overload and confusion with intelligent workload balancing. Ensure team members are neither overworked nor underutilized, with clear assignments and transparent capacity planning.
-                  </p>
-                </div>
-              </TabsContent>
-              <TabsContent value="analytics">
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
-                    <Image src="/placeholder.png" alt="analytics" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
-                  </div>
-                  <p className="text-lg text-center max-w-2xl mt-4 text-gray-700 dark:text-gray-200">
-                    Gain crystal-clear visibility into project progress with powerful analytics. Identify bottlenecks before they impact deadlines, track team performance, and make data-driven decisions that keep work flowing smoothly.
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-          {/* Wall Of Love Section */}
-          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center">
-            <span className="text-[15px] font-semibold text-orange-600 mb-3" style={{letterSpacing: 0}}>What our users say about working with SynergySphere</span>
-            <h2
-              className="text-[44px] leading-tight font-black text-neutral-900 mb-10"
-              style={{ fontFamily: 'Satoshi, sans-serif' }}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
+            <SignupButton href="/dashboard">
+              Get Started Free
+            </SignupButton>
+            <button 
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              className="bg-blue-50 text-blue-600 text-sm font-medium py-3 px-8 rounded-md transition-colors border border-blue-100 hover:bg-blue-100"
             >
-              Wall of love
-            </h2>
-            <div className="w-full max-w-5xl">
-              <MarqueeDemo />
-            </div>
-          </div>
-          {/* Pricing Section */}
-          <div id="pricing" className="max-w-7xl w-full mx-auto">
-            <PricingSection />
-          </div>
-          {/* Wobble Card Section */}
-          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center">
-            <WobbleCardDemo />
-          </div>
-          {/* FAQ Section */}
-          <div id="faq" className="w-full">
-            <FAQSection />
-          </div>
-          {/* Footer */}
-          <div className="w-full">
-            <Footer />
+              Explore Features
+            </button>
           </div>
         </div>
       </div>
-    </ThemeProvider>
-  )
+      {/* Tabs Section */}
+      <div id="features" className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-15 flex flex-col items-center justify-center">
+        <Tabs defaultValue="overview" className="w-full max-w-4xl">
+          <TabsList className="flex flex-wrap justify-center items-center gap-2 mb-6 bg-transparent p-0 w-full">
+            <TabsTrigger value="overview" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+              <LayoutDashboard className="w-5 h-5" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="task-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+              <Edit3 className="w-5 h-5" /> Task Management
+            </TabsTrigger>
+            <TabsTrigger value="team-communication" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+              <ListChecks className="w-5 h-5" /> Team Communication
+            </TabsTrigger>
+            <TabsTrigger value="resource-management" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+              <BarChart3 className="w-5 h-5" /> Resource Management
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-white text-gray-900 font-medium text-base shadow-none transition-colors">
+              <PieChart className="w-5 h-5" /> Analytics
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview">
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                <Image src="/placeholder.png" alt="overview" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+              </div>
+              <p className="text-lg text-center max-w-2xl mt-4 text-gray-700">
+                SynergySphere acts as your team's central nervous system—bringing scattered information together, providing clear visibility into progress, and helping you stay ahead of deadlines instead of constantly reacting.
+              </p>
+            </div>
+          </TabsContent>
+          <TabsContent value="task-management">
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                <Image src="/placeholder.png" alt="task management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+              </div>
+              <p className="text-lg text-center max-w-2xl mt-4 text-gray-700">
+                Our intelligent task management system proactively surfaces potential issues before they become problems. Optimize resource allocation, prevent deadline surprises, and ensure your team is always working on what matters most.
+              </p>
+            </div>
+          </TabsContent>
+          <TabsContent value="team-communication">
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                <Image src="/placeholder.png" alt="team communication" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+              </div>
+              <p className="text-lg text-center max-w-2xl mt-4 text-gray-700">
+                Close communication gaps with integrated team discussions. Keep everyone in the loop with contextual conversations tied directly to tasks, preventing important updates from getting buried in email or lost in scattered chats.
+              </p>
+            </div>
+          </TabsContent>
+          <TabsContent value="resource-management">
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                <Image src="/placeholder.png" alt="resource management" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+              </div>
+              <p className="text-lg text-center max-w-2xl mt-4 text-gray-700">
+                Eliminate resource overload and confusion with intelligent workload balancing. Ensure team members are neither overworked nor underutilized, with clear assignments and transparent capacity planning.
+              </p>
+            </div>
+          </TabsContent>
+          <TabsContent value="analytics">
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-full max-w-[900px] h-auto flex items-center justify-center mb-2">
+                <Image src="/placeholder.png" alt="analytics" width={900} height={540} className="object-contain rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+              </div>
+              <p className="text-lg text-center max-w-2xl mt-4 text-gray-700">
+                Gain crystal-clear visibility into project progress with powerful analytics. Identify bottlenecks before they impact deadlines, track team performance, and make data-driven decisions that keep work flowing smoothly.
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+      {/* Wall Of Love Section */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center">
+        <span className="text-[15px] font-semibold text-orange-600 mb-3" style={{letterSpacing: 0}}>What our users say about working with SynergySphere</span>
+        <h2
+          className="text-[44px] leading-tight font-black text-neutral-900 mb-10"
+          style={{ fontFamily: 'Satoshi, sans-serif' }}
+        >
+          Wall of love
+        </h2>
+        <div className="w-full max-w-5xl">
+          <MarqueeDemo />
+        </div>
+      </div>
+      {/* Pricing Section */}
+      <div id="pricing" className="max-w-7xl w-full mx-auto">
+        <PricingSection />
+      </div>
+      {/* Wobble Card Section */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center">
+        <WobbleCardDemo />
+      </div>
+      {/* FAQ Section */}
+      <div id="faq" className="w-full">
+        <FAQSection />
+      </div>
+      {/* Footer */}
+      <div className="w-full">
+        <Footer />
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-white">
+      <LightModeBackground />
+    </div>
+  );
 }

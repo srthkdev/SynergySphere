@@ -1,10 +1,17 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from 'next-themes';
 
-export function ColorfulText({ text }: { text: string }) {
+export function ColorfulText({ text, forceTheme }: { text: string; forceTheme?: 'light' | 'dark' }) {
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  // useEffect only runs on the client, so now we can safely show the UI
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   // Blue-themed colors that match the UI
   const lightColors = [
     "rgb(37, 99, 235)",  // blue-600
@@ -20,7 +27,15 @@ export function ColorfulText({ text }: { text: string }) {
     "#93c5fd", // blue-300
     "#60a5fa", // blue-400
   ];
-  const colors = resolvedTheme === 'dark' ? darkColors : lightColors;
+  
+  // Use forceTheme if provided, otherwise use the resolved theme
+  let colors = lightColors; // Default to light colors
+  
+  if (forceTheme) {
+    colors = forceTheme === 'dark' ? darkColors : lightColors;
+  } else if (mounted && resolvedTheme === 'dark') {
+    colors = darkColors;
+  }
 
   const [count, setCount] = React.useState(0);
 
