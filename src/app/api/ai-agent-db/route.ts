@@ -1,20 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Message as VercelChatMessage } from "ai";
-import { ChatOpenAI } from "@langchain/openai";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import {
-  AIMessage,
-  BaseMessage,
-  ChatMessage,
-  HumanMessage,
-  SystemMessage,
-} from "@langchain/core/messages";
-import { textToSQLTools } from "@/lib/ai-tools/text-to-sql-tool";
 import { getUser } from "@/lib/auth/auth-utils";
+
+// Dynamic imports to prevent webpack bundling issues
+const loadLangChainDeps = async () => {
+  const [
+    { ChatOpenAI },
+    { createReactAgent },
+    { AIMessage, BaseMessage, ChatMessage, HumanMessage, SystemMessage },
+    { textToSQLTools }
+  ] = await Promise.all([
+    import("@langchain/openai"),
+    import("@langchain/langgraph/prebuilt"),
+    import("@langchain/core/messages"),
+    import("@/lib/ai-tools/text-to-sql-tool")
+  ]);
+
+  return {
+    ChatOpenAI,
+    createReactAgent,
+    AIMessage,
+    BaseMessage,
+    ChatMessage,
+    HumanMessage,
+    SystemMessage,
+    textToSQLTools
+  };
+};
 
 // Removed edge runtime because auth/email dependencies require Node.js modules
 
-const convertVercelMessageToLangChainMessage = (message: VercelChatMessage) => {
+const convertVercelMessageToLangChainMessage = (message: VercelChatMessage, MessageClasses: any) => {
+  const { HumanMessage, AIMessage, ChatMessage } = MessageClasses;
   if (message.role === "user") {
     return new HumanMessage(message.content);
   } else if (message.role === "assistant") {
@@ -80,11 +97,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const langChainDeps = await loadLangChainDeps();
+    const { ChatOpenAI, createReactAgent, AIMessage, BaseMessage, ChatMessage, HumanMessage, SystemMessage, textToSQLTools } = langChainDeps;
+
     const langChainMessages = messages
       .filter((message: VercelChatMessage) => 
         message.role === "user" || message.role === "assistant"
       )
-      .map(convertVercelMessageToLangChainMessage);
+      .map((message: VercelChatMessage) => convertVercelMessageToLangChainMessage(message, { AIMessage, HumanMessage, ChatMessage }));
 
     const model = new ChatOpenAI({
       temperature: 0.3, // Lower temperature for more factual responses when dealing with data
