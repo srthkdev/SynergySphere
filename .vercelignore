@@ -1,0 +1,8 @@
+bun.lock
+*.log
+.DS_Store
+node_modules
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 
