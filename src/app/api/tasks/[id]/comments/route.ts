@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 interface Comment {
   id: string;
@@ -14,21 +12,33 @@ interface Comment {
   editedAt?: string;
 }
 
-const commentsFilePath = path.join(process.cwd(), 'data', 'comments.json');
+// Dynamic imports to prevent webpack bundling issues
+const getFileSystemModules = async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  return { fs: fs.default, path: path.default };
+};
 
-// Ensure data directory exists
-const dataDir = path.dirname(commentsFilePath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+async function ensureDataDirectory() {
+  const { fs, path } = await getFileSystemModules();
+  const commentsFilePath = path.join(process.cwd(), 'data', 'comments.json');
+  const dataDir = path.dirname(commentsFilePath);
+  
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  if (!fs.existsSync(commentsFilePath)) {
+    fs.writeFileSync(commentsFilePath, JSON.stringify([], null, 2));
+  }
+  
+  return commentsFilePath;
 }
 
-// Initialize comments file if it doesn't exist
-if (!fs.existsSync(commentsFilePath)) {
-  fs.writeFileSync(commentsFilePath, JSON.stringify([], null, 2));
-}
-
-function getComments(): Comment[] {
+async function getComments(): Promise<Comment[]> {
   try {
+    const { fs } = await getFileSystemModules();
+    const commentsFilePath = await ensureDataDirectory();
     const data = fs.readFileSync(commentsFilePath, 'utf8');
     return JSON.parse(data);
   } catch (error) {
@@ -37,8 +47,10 @@ function getComments(): Comment[] {
   }
 }
 
-function saveComments(comments: Comment[]): void {
+async function saveComments(comments: Comment[]): Promise<void> {
   try {
+    const { fs } = await getFileSystemModules();
+    const commentsFilePath = await ensureDataDirectory();
     fs.writeFileSync(commentsFilePath, JSON.stringify(comments, null, 2));
   } catch (error) {
     console.error('Error saving comments:', error);
@@ -58,7 +70,7 @@ export async function GET(
 ) {
   try {
     const { id: taskId } = await params;
-    const comments = getComments();
+    const comments = await getComments();
     const taskComments = comments
       .filter(comment => comment.taskId === taskId)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -84,7 +96,7 @@ export async function POST(
       return NextResponse.json({ error: 'Text and author name are required' }, { status: 400 });
     }
 
-    const comments = getComments();
+    const comments = await getComments();
     
     const newComment: Comment = {
       id: Date.now().toString(),
@@ -98,7 +110,7 @@ export async function POST(
     };
 
     comments.push(newComment);
-    saveComments(comments);
+    await saveComments(comments);
     
     return NextResponse.json(newComment, { status: 201 });
   } catch (error) {
@@ -121,7 +133,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Comment ID and text are required' }, { status: 400 });
     }
 
-    const comments = getComments();
+    const comments = await getComments();
     const commentIndex = comments.findIndex(c => c.id === commentId && c.taskId === taskId);
     
     if (commentIndex === -1) {
@@ -135,7 +147,7 @@ export async function PUT(
       editedAt: new Date().toISOString()
     };
     
-    saveComments(comments);
+    await saveComments(comments);
     
     return NextResponse.json(comments[commentIndex]);
   } catch (error) {
@@ -158,14 +170,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Comment ID is required' }, { status: 400 });
     }
 
-    const comments = getComments();
+    const comments = await getComments();
     const filteredComments = comments.filter(c => !(c.id === commentId && c.taskId === taskId));
     
     if (filteredComments.length === comments.length) {
       return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
     }
     
-    saveComments(filteredComments);
+    await saveComments(filteredComments);
     
     return NextResponse.json({ message: 'Comment deleted successfully' });
   } catch (error) {

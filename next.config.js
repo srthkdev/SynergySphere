@@ -9,6 +9,9 @@ const nextConfig = {
         net: false,
         tls: false,
         crypto: false,
+        path: false,
+        os: false,
+        child_process: false,
       };
     }
 
@@ -17,9 +20,18 @@ const nextConfig = {
     if (isServer) {
       config.externals.push({
         'canvas': 'canvas',
-        'sharp': 'sharp'
+        'sharp': 'sharp',
+        'onnxruntime-node': 'onnxruntime-node',
+        '@node-rs/argon2': '@node-rs/argon2',
+        '@node-rs/bcrypt': '@node-rs/bcrypt',
       });
     }
+
+    // Optimize module resolution
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, 'src'),
+    };
 
     return config;
   },
@@ -30,6 +42,8 @@ const nextConfig = {
     domains: [],
     unoptimized: false,
   },
+  // Output file tracing for better Vercel deployment
+  output: 'standalone',
 };
 
 module.exports = nextConfig; 
