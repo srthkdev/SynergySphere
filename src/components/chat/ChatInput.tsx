@@ -12,8 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { useTheme } from 'next-themes';
 
 interface ChatInputProps {
@@ -150,11 +149,11 @@ export function ChatInput({ projectId, taskId, placeholder = 'Type a message...'
   };
 
   // Add emoji to message
-  const handleEmojiSelect = (emoji: { native: string }) => {
+  const handleEmojiSelect = (emojiData: EmojiClickData) => {
     const cursorPos = textareaRef.current?.selectionStart || message.length;
     const newMessage = 
       message.substring(0, cursorPos) + 
-      emoji.native + 
+      emojiData.emoji + 
       message.substring(cursorPos);
     
     setMessage(newMessage);
@@ -163,7 +162,7 @@ export function ChatInput({ projectId, taskId, placeholder = 'Type a message...'
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const newCursorPos = cursorPos + emoji.native.length;
+        const newCursorPos = cursorPos + emojiData.emoji.length;
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
       }
     }, 0);
@@ -233,13 +232,11 @@ export function ChatInput({ projectId, taskId, placeholder = 'Type a message...'
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0 border-none bg-transparent" align="end">
-                <Picker 
-                  data={data} 
-                  onEmojiSelect={handleEmojiSelect}
-                  theme={theme === 'dark' ? 'dark' : 'light'}
-                  emojiSize={20}
-                  emojiButtonSize={28}
-                  perLine={8}
+                <EmojiPicker 
+                  onEmojiClick={handleEmojiSelect}
+                  theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+                  width={320}
+                  height={400}
                 />
               </PopoverContent>
             </Popover>

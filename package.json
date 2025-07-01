@@ -15,8 +15,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@emoji-mart/data": "^1.1.2",
-    "@emoji-mart/react": "^1.1.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.0.1",
     "@langchain/community": "^0.3.47",
@@ -52,6 +50,7 @@
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
     "drizzle-zod": "^0.8.2",
+    "emoji-picker-react": "^4.12.3",
     "framer-motion": "^12.16.0",
     "langchain": "^0.3.29",
     "lightningcss": "^1.30.1",
