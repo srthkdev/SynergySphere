@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "build": {
+    "env": {
+      "npm_config_target_platform": "linux",
+      "npm_config_target_arch": "x64",
+      "npm_config_target_libc": "glibc"
+    }
+  }
+} 
